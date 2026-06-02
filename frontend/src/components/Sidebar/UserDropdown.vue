@@ -68,7 +68,7 @@ import { sessionStore } from '@/stores/session'
 import { call, Dropdown, toast } from 'frappe-ui'
 import { useRouter } from 'vue-router'
 import { convertToTitleCase } from '@/utils'
-import { applyTheme, toggleTheme, theme } from '@/utils/theme'
+import { applyTheme, theme, themeOptions } from '@/utils/theme'
 import { usersStore } from '@/stores/user'
 import { useSettings } from '@/stores/settings'
 import { markRaw, watch, ref, onMounted, computed } from 'vue'
@@ -80,9 +80,11 @@ import LMSLogo from '@/components/Icons/LMSLogo.vue'
 import SettingsModal from '@/components/Settings/Settings.vue'
 import {
 	ChevronDown,
+	Check,
 	LogIn,
 	LogOut,
 	Moon,
+	Palette,
 	User,
 	Settings,
 	Sun,
@@ -106,9 +108,7 @@ const props = defineProps({
 })
 
 onMounted(() => {
-	if (['light', 'dark'].includes(theme.value)) {
-		applyTheme(theme.value)
-	}
+	applyTheme(theme.value)
 })
 
 watch(
@@ -133,13 +133,30 @@ const userDropdownOptions = computed(() => {
 						return isLoggedIn
 					},
 				},
-				{
-					icon: theme.value === 'light' ? Moon : Sun,
-					label: 'Toggle Theme',
+			],
+		},
+		{
+			group: 'Theme',
+			items: themeOptions.map((option) => {
+				return {
+					icon:
+						theme.value === option.value
+							? Check
+							: option.value === 'dark'
+							? Moon
+							: option.value === 'light'
+							? Sun
+							: Palette,
+					label: option.label,
 					onClick: () => {
-						toggleTheme()
+						applyTheme(option.value)
 					},
-				},
+				}
+			}),
+		},
+		{
+			group: '',
+			items: [
 				{
 					component: markRaw(Apps),
 					condition: () => {

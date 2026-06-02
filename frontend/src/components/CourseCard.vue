@@ -137,7 +137,7 @@ import { Award, BookOpen, GraduationCap, Star, Users } from 'lucide-vue-next'
 import { sessionStore } from '@/stores/session'
 import { Tooltip } from 'frappe-ui'
 import { formatAmount } from '@/utils'
-import { theme } from '@/utils/theme'
+import { getThemeColorMode, theme } from '@/utils/theme'
 import { computed, watch } from 'vue'
 import CourseInstructors from '@/components/CourseInstructors.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
@@ -154,7 +154,8 @@ const props = defineProps({
 })
 
 const gradientColor = computed(() => {
-	let themeMode = theme.value === 'dark' ? 'darkMode' : 'lightMode'
+	let themeMode =
+		getThemeColorMode(theme.value) === 'dark' ? 'darkMode' : 'lightMode'
 	let color = props.course.card_gradient?.toLowerCase() || 'blue'
 	let colorMap = colors[themeMode][color]
 	return `linear-gradient(to top right, black, ${colorMap[400]})`

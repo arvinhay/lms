@@ -1,6 +1,9 @@
 <template>
 	<FrappeUIProvider>
-		<Layout class="rea-lms-theme isolate text-p-base">
+		<Layout
+			class="isolate text-p-base"
+			:class="{ 'rea-lms-theme': theme === 'rea' }"
+		>
 			<router-view />
 		</Layout>
 		<InstallPrompt v-if="isMobile && !settings.data?.disable_pwa" />
@@ -18,11 +21,14 @@ import DesktopLayout from './components/Layouts/DesktopLayout.vue'
 import MobileLayout from './components/Layouts/MobileLayout.vue'
 import NoSidebarLayout from './components/Layouts/NoSidebarLayout.vue'
 import InstallPrompt from './components/InstallPrompt.vue'
+import { applyTheme, theme } from '@/utils/theme'
 
 const { isMobile } = useScreenSize()
 const router = useRouter()
 const noSidebar = ref(false)
 const { settings } = useSettings()
+
+applyTheme(theme.value)
 
 router.beforeEach((to, from, next) => {
 	if (to.query.fromLesson || to.path === '/persona') {

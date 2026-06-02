@@ -141,7 +141,7 @@
 									class="size-2 rounded"
 									:style="{
 										backgroundColor:
-											colors[theme][
+											colors[chartTheme][
 												row.name.startsWith('Just')
 													? 'red'
 													: row.name.startsWith('In')
@@ -280,6 +280,7 @@ import { computed, inject, ref, watch } from 'vue'
 import type dayjsType from 'dayjs'
 import { Plus, Star } from 'lucide-vue-next'
 import { formatAmount } from '@/utils'
+import { getThemeColorMode, theme as appTheme } from '@/utils/theme'
 import colors from '@/utils/frappe-ui-colors.json'
 import CourseEnrollmentModal from '@/pages/Courses/CourseEnrollmentModal.vue'
 import NumberChartGraph from '@/components/NumberChartGraph.vue'
@@ -295,8 +296,8 @@ const showEnrollmentModal = ref(false)
 const searchFilter = ref<string | null>(null)
 const showProgressModal = ref(false)
 const currentStudent = ref<any>(null)
-const theme = ref<'darkMode' | 'lightMode'>(
-	localStorage.getItem('theme') == 'dark' ? 'darkMode' : 'lightMode'
+const chartTheme = computed<'darkMode' | 'lightMode'>(() =>
+	getThemeColorMode(appTheme.value) === 'dark' ? 'darkMode' : 'lightMode'
 )
 type Filters = {
 	course: string | undefined
@@ -376,10 +377,10 @@ const averageCompletionRate = computed(() => {
 
 const progressColors = computed(() => {
 	let colorList = []
-	colorList.push(colors[theme.value]['red'][400])
-	colorList.push(colors[theme.value]['amber'][400])
-	colorList.push(colors[theme.value]['blue'][400])
-	colorList.push(colors[theme.value]['green'][400])
+	colorList.push(colors[chartTheme.value]['red'][400])
+	colorList.push(colors[chartTheme.value]['amber'][400])
+	colorList.push(colors[chartTheme.value]['blue'][400])
+	colorList.push(colors[chartTheme.value]['green'][400])
 	return colorList
 })
 

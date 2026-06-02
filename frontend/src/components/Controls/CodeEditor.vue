@@ -33,8 +33,7 @@ import 'ace-builds/src-min-noconflict/theme-chrome'
 import 'ace-builds/src-min-noconflict/theme-twilight'
 import { PropType, onMounted, ref, watch } from 'vue'
 import { Button } from 'frappe-ui'
-
-const isDark = ref(false)
+import { isDarkTheme } from '@/utils/theme'
 
 const props = defineProps({
 	modelValue: {
@@ -79,7 +78,6 @@ const editor = ref<HTMLElement | null>(null)
 let aceEditor = null as ace.Ace.Editor | null
 
 onMounted(() => {
-	isDark.value = localStorage.getItem('theme') === 'dark'
 	setupEditor()
 })
 
@@ -146,16 +144,19 @@ function resetEditor(value: string, resetHistory = false) {
 	value = getModelValue()
 	aceEditor?.setValue(value)
 	aceEditor?.clearSelection()
-	aceEditor?.setTheme(isDark.value ? 'ace/theme/twilight' : 'ace/theme/chrome')
+	aceEditor?.setTheme(
+		isDarkTheme.value ? 'ace/theme/twilight' : 'ace/theme/chrome'
+	)
 	props.autofocus && aceEditor?.focus()
 	if (resetHistory) {
 		aceEditor?.session.getUndoManager().reset()
 	}
 }
 
-watch(isDark, () => {
-	console.log(isDark.value)
-	aceEditor?.setTheme(isDark.value ? 'ace/theme/twilight' : 'ace/theme/chrome')
+watch(isDarkTheme, () => {
+	aceEditor?.setTheme(
+		isDarkTheme.value ? 'ace/theme/twilight' : 'ace/theme/chrome'
+	)
 })
 
 watch(
