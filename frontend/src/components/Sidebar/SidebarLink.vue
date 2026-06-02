@@ -1,7 +1,7 @@
 <template>
 	<button
 		v-if="link && !link.onlyMobile"
-		class="flex w-full h-7 cursor-pointer items-center rounded text-ink-gray-8 duration-300 ease-in-out focus:outline-none focus:transition-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-outline-gray-3"
+		class="rea-sidebar-link flex w-full h-7 cursor-pointer items-center rounded text-ink-gray-8 duration-300 ease-in-out focus:outline-none focus:transition-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-outline-gray-3"
 		:class="
 			isActive ? 'bg-surface-selected shadow-sm' : 'hover:bg-surface-gray-2'
 		"

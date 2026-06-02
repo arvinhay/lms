@@ -1,5 +1,5 @@
 <template>
-	<div class="">
+	<div class="rea-course-outline">
 		<div
 			v-if="title && (outline.data?.length || allowEdit)"
 			class="flex items-center justify-between gap-x-2 mb-4 px-2"
@@ -94,7 +94,7 @@
 								>
 									<template #item="{ element: lesson }">
 										<div
-											class="outline-lesson ps-8 py-2 pe-4 text-ink-gray-9"
+											class="rea-outline-lesson outline-lesson ps-8 py-2 pe-4 text-ink-gray-9"
 											:class="
 												isActiveLesson(lesson.number) ? 'bg-surface-gray-3' : ''
 											"

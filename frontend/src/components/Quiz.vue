@@ -1,7 +1,7 @@
 <template>
 	<div v-if="quiz.data">
 		<div
-			class="bg-surface-blue-2 text-ink-blue-3 space-y-2 p-3 mb-4 rounded-lg leading-5"
+			class="rea-quiz-instructions bg-surface-blue-2 text-ink-blue-3 space-y-2 p-3 mb-4 rounded-lg leading-5"
 		>
 			<div class="font-medium">
 				{{
@@ -80,7 +80,7 @@
 		</div>
 
 		<div v-if="activeQuestion == 0">
-			<div class="border text-center p-20 rounded-md">
+			<div class="rea-quiz-start-card border text-center p-20 rounded-md">
 				<div class="font-semibold text-lg text-ink-gray-9">
 					{{ quiz.data.title }}
 				</div>
@@ -120,7 +120,7 @@
 			<div v-for="(question, qtidx) in questions">
 				<div
 					v-if="qtidx == activeQuestion - 1 && questionDetails.data"
-					class="border rounded-lg p-5"
+					class="rea-quiz-question-card border rounded-lg p-5"
 				>
 					<div class="flex justify-between">
 						<div class="text-sm text-ink-gray-5">
@@ -139,7 +139,7 @@
 					<div v-if="questionDetails.data.type == 'Choices'" v-for="index in 4">
 						<label
 							v-if="questionDetails.data[`option_${index}`]"
-							class="flex items-center bg-surface-gray-3 rounded-md p-3 mt-4 w-full cursor-pointer focus:border-blue-600"
+							class="rea-quiz-option flex items-center bg-surface-gray-3 rounded-md p-3 mt-4 w-full cursor-pointer focus:border-blue-600"
 						>
 							<input
 								v-if="!showAnswers.length && !questionDetails.data.multiple"
@@ -245,7 +245,7 @@
 							<span
 								v-for="item in paginationWindow"
 								:key="item"
-								class="w-6 h-6 rounded-full flex items-center justify-center text-sm"
+								class="rea-quiz-page-pill w-6 h-6 rounded-full flex items-center justify-center text-sm"
 								:class="{
 									'cursor-pointer': item !== '...',
 									'bg-surface-gray-4 border border-outline-gray-5 font-medium':
@@ -310,7 +310,10 @@
 					</div>
 				</div>
 			</div>
-			<div v-if="reviewQuestions.length" class="border rounded-lg p-4 mt-4">
+			<div
+				v-if="reviewQuestions.length"
+				class="rea-quiz-review-card border rounded-lg p-4 mt-4"
+			>
 				<div class="font-semibold">
 					{{ __('Questions marked for review') }}
 				</div>
@@ -325,7 +328,7 @@
 				</div>
 			</div>
 		</div>
-		<div v-else class="border rounded-lg p-20 text-center space-y-2">
+		<div v-else class="rea-quiz-summary-card border rounded-lg p-20 text-center space-y-2">
 			<div class="text-lg font-semibold text-ink-gray-9">
 				{{ __('Quiz Summary') }}
 			</div>

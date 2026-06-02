@@ -201,7 +201,7 @@
 							"
 						/>
 					</Tooltip>
-					<Tooltip :text="__('Powered by Frappe Learning')">
+					<Tooltip :text="__('Powered by REA LMS')">
 						<Zap
 							class="size-4 stroke-1.5 text-ink-gray-7 cursor-pointer"
 							@click="redirectToWebsite()"
@@ -232,7 +232,7 @@
 			v-model="showHelpModal"
 			v-model:articles="articles"
 			appName="learning"
-			title="Frappe Learning"
+			title="REA LMS"
 			:logo="LMSLogo"
 			:afterSkip="(step) => capture('onboarding_step_skipped_' + step)"
 			:afterSkipAll="() => capture('onboarding_steps_skipped')"
