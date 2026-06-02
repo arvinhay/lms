@@ -1,0 +1,64 @@
+:root {
+	--rea-navbar-bg: #ffffff;
+	--rea-body-bg: #fbf3e2;
+	--rea-primary: #f07a03;
+	--rea-primary-hover: #d96702;
+	--rea-link: #167b8d;
+	--rea-border: #f7e7d0;
+	--rea-text: #1f2933;
+	--rea-muted: #6b7280;
+}
+
+body {
+	background: var(--rea-body-bg);
+	color: var(--rea-text);
+}
+
+.rea-lms-theme,
+.rea-desktop-layout,
+.rea-main-shell,
+.rea-mobile-layout,
+.rea-mobile-scroll,
+.rea-nosidebar-layout,
+.rea-nosidebar-scroll {
+	background: var(--rea-body-bg);
+}
+
+.rea-sidebar-shell,
+.rea-sidebar-shell .bg-surface-menu-bar,
+.rea-mobile-nav,
+.rea-mobile-menu {
+	background: var(--rea-navbar-bg);
+}
+
+.rea-sidebar-shell {
+	border-color: var(--rea-border);
+}
+
+.rea-lms-theme a:not([class*='text-ink-']):not([class*='text-gray-']) {
+	color: var(--rea-link);
+}
+
+.rea-lms-theme .router-link-active,
+.rea-lms-theme .router-link-exact-active {
+	color: var(--rea-link);
+}
+
+.rea-lms-theme button[class*='bg-surface-gray'][class*='text-ink-white'],
+.rea-lms-theme button[class*='bg-ink-gray'][class*='text-ink-white'],
+.rea-lms-theme [role='button'][class*='bg-surface-gray'][class*='text-ink-white'] {
+	background-color: var(--rea-primary) !important;
+	border-color: var(--rea-primary) !important;
+}
+
+.rea-lms-theme button[class*='bg-surface-gray'][class*='text-ink-white']:hover,
+.rea-lms-theme button[class*='bg-ink-gray'][class*='text-ink-white']:hover,
+.rea-lms-theme
+	[role='button'][class*='bg-surface-gray'][class*='text-ink-white']:hover {
+	background-color: var(--rea-primary-hover) !important;
+	border-color: var(--rea-primary-hover) !important;
+}
+
+.rea-lms-theme :focus-visible {
+	outline-color: var(--rea-link);
+}

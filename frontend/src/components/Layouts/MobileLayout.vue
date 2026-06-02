@@ -1,7 +1,7 @@
 <template>
-	<div class="relative flex h-screen flex-col">
+	<div class="rea-mobile-layout relative flex h-screen flex-col">
 		<div
-			class="flex flex-1 flex-col overflow-y-auto pb-10"
+			class="rea-mobile-scroll flex flex-1 flex-col overflow-y-auto pb-10"
 			id="scrollContainer"
 		>
 			<slot />
@@ -10,7 +10,7 @@
 		<div class="relative z-20">
 			<!-- Dropdown menu -->
 			<div
-				class="fixed bottom-16 end-2 w-[80%] space-y-4 rounded-md bg-surface-white p-5 text-base shadow-md"
+				class="rea-mobile-menu fixed bottom-16 end-2 w-[80%] space-y-4 rounded-md bg-surface-white p-5 text-base shadow-md"
 				v-if="showMenu"
 				ref="menu"
 			>
@@ -31,7 +31,7 @@
 			<!-- Fixed menu -->
 			<div
 				v-if="sidebarSettings.data"
-				class="standalone:pb-4 fixed bottom-0 start-0 z-10 flex w-full items-center justify-around border-t border-outline-gray-2 bg-surface-white"
+				class="rea-mobile-nav standalone:pb-4 fixed bottom-0 start-0 z-10 flex w-full items-center justify-around border-t border-outline-gray-2 bg-surface-white"
 			>
 				<button
 					v-for="tab in sidebarLinks"

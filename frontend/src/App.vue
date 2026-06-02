@@ -1,6 +1,6 @@
 <template>
 	<FrappeUIProvider>
-		<Layout class="isolate text-p-base">
+		<Layout class="rea-lms-theme isolate text-p-base">
 			<router-view />
 		</Layout>
 		<InstallPrompt v-if="isMobile && !settings.data?.disable_pwa" />
