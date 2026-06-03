@@ -201,12 +201,6 @@
 							"
 						/>
 					</Tooltip>
-					<Tooltip :text="__('Powered by REA LMS')">
-						<Zap
-							class="size-4 stroke-1.5 text-ink-gray-7 cursor-pointer"
-							@click="redirectToWebsite()"
-						/>
-					</Tooltip>
 				</div>
 				<Tooltip
 					:text="
@@ -288,7 +282,6 @@ import {
 	UserPlus,
 	Users,
 	BookText,
-	Zap,
 } from 'lucide-vue-next'
 import {
 	TrialBanner,
@@ -675,10 +668,6 @@ const updateSidebarLinks = () => {
 	sidebarLinks.value = getSidebarLinks()
 	updateSidebarLinksVisibility()
 	updateUnreadCount()
-}
-
-const redirectToWebsite = () => {
-	window.open('https://frappe.io/learning', '_blank')
 }
 
 const isStudent = computed(() => {

@@ -8,6 +8,158 @@ body {
 	font-size: var(--text-base);
 }
 
+body[data-path="login"] {
+	--rea-primary: #167b8d;
+	--rea-primary-hover: #116574;
+	--rea-page-bg: #FBF3E2;
+	--rea-card-bg: #FFFFFF;
+	--rea-border: #d9e3e5;
+	--rea-muted: #5b6467;
+	background: var(--rea-page-bg);
+	color: var(--gray-900);
+}
+
+body[data-path="login"] .navbar,
+body[data-path="login"] .web-footer,
+body[data-path="login"] .page-breadcrumbs,
+body[data-path="login"] .page-header-wrapper {
+	display: none;
+}
+
+body[data-path="login"] #page-login {
+	min-height: 100vh;
+	background: var(--rea-page-bg);
+}
+
+body[data-path="login"] main.container {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 100vh;
+	max-width: 480px;
+	padding: 2rem 1rem;
+}
+
+body[data-path="login"] .page_content {
+	width: 100%;
+}
+
+body[data-path="login"] .page-card-head {
+	margin-bottom: 1.25rem;
+	text-align: center;
+}
+
+body[data-path="login"] .page-card-head .app-logo {
+	width: min(180px, 62vw);
+	height: auto;
+	max-height: 140px;
+	object-fit: contain;
+	margin: 0 auto 1.25rem;
+}
+
+body[data-path="login"] .page-card-head h4 {
+	margin: 0;
+	color: var(--gray-900);
+	font-size: 1.35rem;
+	font-weight: 700;
+	line-height: 1.35;
+}
+
+body[data-path="login"] .login-content.page-card {
+	width: 100%;
+	padding: 1.5rem;
+	border: 1px solid var(--rea-border);
+	border-radius: 8px;
+	background: var(--rea-card-bg);
+	box-shadow: 0 18px 45px rgba(17, 101, 116, 0.12);
+}
+
+body[data-path="login"] .page-card-body,
+body[data-path="login"] .page-card-actions {
+	padding: 0;
+}
+
+body[data-path="login"] .form-group {
+	margin-bottom: 1rem;
+}
+
+body[data-path="login"] .form-control {
+	height: 44px;
+	border: 1px solid var(--rea-border);
+	border-radius: 6px;
+	background: #FFFFFF;
+	color: var(--gray-900);
+	font-size: 0.95rem;
+}
+
+body[data-path="login"] .form-control:focus {
+	border-color: var(--rea-primary);
+	box-shadow: 0 0 0 3px rgba(22, 123, 141, 0.18);
+}
+
+body[data-path="login"] .field-icon {
+	color: var(--rea-muted);
+}
+
+body[data-path="login"] .toggle-password,
+body[data-path="login"] .forgot-password-message a,
+body[data-path="login"] .sign-up-message a,
+body[data-path="login"] .blue {
+	color: var(--rea-primary) !important;
+}
+
+body[data-path="login"] .forgot-password-message {
+	margin: -0.25rem 0 1.25rem;
+	font-size: 0.9rem;
+}
+
+body[data-path="login"] .btn-primary,
+body[data-path="login"] .btn-login,
+body[data-path="login"] .btn-signup,
+body[data-path="login"] .btn-login-with-email-link {
+	min-height: 42px;
+	border-color: var(--rea-primary);
+	border-radius: 6px;
+	background: var(--rea-primary);
+	color: #FFFFFF;
+	font-weight: 600;
+}
+
+body[data-path="login"] .btn-primary:hover,
+body[data-path="login"] .btn-login:hover,
+body[data-path="login"] .btn-signup:hover,
+body[data-path="login"] .btn-login-with-email-link:hover {
+	border-color: var(--rea-primary-hover);
+	background: var(--rea-primary-hover);
+	color: #FFFFFF;
+}
+
+body[data-path="login"] .login-divider {
+	margin: 1.25rem 0 0.9rem;
+	color: var(--rea-muted) !important;
+}
+
+body[data-path="login"] .sign-up-message {
+	margin-top: 1rem;
+	color: var(--rea-muted);
+	font-size: 0.95rem;
+}
+
+body[data-path="login"] .indicator {
+	color: var(--rea-primary);
+}
+
+@media (max-width: 480px) {
+	body[data-path="login"] main.container {
+		align-items: flex-start;
+		padding-top: 2.5rem;
+	}
+
+	body[data-path="login"] .login-content.page-card {
+		padding: 1.25rem;
+	}
+}
+
 .nav-link .course-list-count {
 	border-radius: var(--border-radius-md);
 	padding: 0 0.3rem;
