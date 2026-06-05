@@ -50,9 +50,10 @@
 		<div v-else-if="block.includes('{{ Embed')">
 			<iframe
 				width="100%"
-				height="400"
+				:height="getEmbedHeight(block)"
 				:src="getId(block)"
 				frameborder="0"
+				allow="autoplay *; geolocation *; microphone *; camera *; midi *; encrypted-media *"
 				allowfullscreen
 			>
 			</iframe>
@@ -68,6 +69,7 @@ import Quiz from '@/components/QuizBlock.vue'
 import MarkdownIt from 'markdown-it'
 import DOMPurify from 'dompurify'
 import { useScreenSize } from '@/utils/composables'
+import { computed, onMounted, watch } from 'vue'
 
 const screenSize = useScreenSize()
 
@@ -107,4 +109,36 @@ const getPDFSource = (block) => {
 const getId = (block) => {
 	return block.match(/\(["']([^"']+?)["']\)/)[1]
 }
+
+const hasH5PEmbed = computed(() =>
+	props.content?.includes('refugee-education.h5p.com')
+)
+
+const loadH5PResizer = () => {
+	if (!hasH5PEmbed.value || document.getElementById('h5p-resizer-script')) return
+
+	const script = document.createElement('script')
+	script.id = 'h5p-resizer-script'
+	script.src = 'https://refugee-education.h5p.com/js/h5p-resizer.js'
+	script.async = true
+	document.body.appendChild(script)
+}
+
+const getEmbedHeight = (block) => {
+	const src = getId(block)
+	if (screenSize.width < 640) {
+		if (src.includes('youtube.com')) return 220
+		if (src.includes('docs.google.com/presentation')) return 320
+		return 620
+	}
+
+	if (src.includes('youtube.com')) return 480
+	if (src.includes('docs.google.com/presentation')) return 620
+	if (src.includes('mentimeter.com') || src.includes('menti.com')) return 720
+	if (src.includes('h5p.com')) return 900
+	return 640
+}
+
+onMounted(loadH5PResizer)
+watch(hasH5PEmbed, loadH5PResizer)
 </script>
