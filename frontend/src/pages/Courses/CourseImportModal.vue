@@ -2,13 +2,13 @@
 	<Dialog
 		v-model="show"
 		:options="{
-			title: __('Import Course from ZIP'),
+			title: dialogTitle,
 		}"
 	>
 		<template #body-content>
 			<div class="text-p-base">
 				<div
-					v-if="!zip"
+					v-if="!uploadedCourseFile"
 					@dragover.prevent
 					@drop.prevent="(e) => uploadFile(e)"
 					class="h-[120px] flex flex-col items-center justify-center bg-surface-gray-1 border border-dashed border-outline-gray-3 rounded-md"
@@ -21,11 +21,11 @@
 							ref="fileInput"
 							type="file"
 							class="hidden"
-							accept=".zip"
+							:accept="acceptedExtension"
 							@change="(e) => uploadFile(e)"
 						/>
 						<div class="leading-5 text-ink-gray-9">
-							{{ __('Drag and drop a ZIP file, or upload from your') }}
+							{{ dropzoneLabel }}
 							<span
 								@click="openFileSelector"
 								class="cursor-pointer font-semibold hover:underline"
@@ -55,7 +55,7 @@
 					</div>
 				</div>
 				<div
-					v-else-if="zip"
+					v-else-if="uploadedCourseFile"
 					class="h-[120px] flex items-center justify-center bg-surface-gray-1 border border-dashed border-outline-gray-3 rounded-md"
 				>
 					<div
@@ -63,10 +63,10 @@
 					>
 						<div class="space-y-2">
 							<div class="font-medium leading-5 text-ink-gray-9">
-								{{ zip.file_name || zip.name }}
+								{{ uploadedCourseFile.file_name || uploadedCourseFile.name }}
 							</div>
-							<div v-if="zip.file_size" class="text-ink-gray-6">
-								{{ convertToMB(zip.file_size) }}
+							<div v-if="uploadedCourseFile.file_size" class="text-ink-gray-6">
+								{{ convertToMB(uploadedCourseFile.file_size) }}
 							</div>
 						</div>
 						<Trash2
@@ -79,7 +79,7 @@
 		</template>
 		<template #actions>
 			<div class="flex justify-end">
-				<Button variant="solid" @click="importZip">
+				<Button variant="solid" @click="importCourse">
 					{{ __('Import') }}
 				</Button>
 			</div>
@@ -94,7 +94,15 @@ import { useRouter } from 'vue-router'
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const show = defineModel<boolean>({ required: true, default: false })
-const zip = ref<any | null>(null)
+const props = withDefaults(
+	defineProps<{
+		mode?: 'zip' | 'imscc'
+	}>(),
+	{
+		mode: 'zip',
+	}
+)
+const uploadedCourseFile = ref<any | null>(null)
 const uploaded = ref(0)
 const total = ref(0)
 const uploading = ref(false)
@@ -104,6 +112,22 @@ const router = useRouter()
 const openFileSelector = () => {
 	fileInput.value?.click()
 }
+
+const isIMSCC = computed(() => props.mode === 'imscc')
+
+const acceptedExtension = computed(() => (isIMSCC.value ? '.imscc' : '.zip'))
+
+const dialogTitle = computed(() =>
+	isIMSCC.value
+		? __('Import Course from IMSCC (Canvas)')
+		: __('Import Course from ZIP')
+)
+
+const dropzoneLabel = computed(() =>
+	isIMSCC.value
+		? __('Drag and drop an IMSCC file, or upload from your')
+		: __('Drag and drop a ZIP file, or upload from your')
+)
 
 const uploadProgress = computed(() => {
 	if (total.value === 0) return 0
@@ -119,9 +143,13 @@ const extractFile = (e: Event): File | null => {
 
 const validateFile = (file: File) => {
 	const extension = file.name.split('.').pop()?.toLowerCase()
-	if (extension !== 'zip') {
-		toast.error('Please upload a valid ZIP file.')
-		console.error('Please upload a valid ZIP file.')
+	const expectedExtension = isIMSCC.value ? 'imscc' : 'zip'
+	if (extension !== expectedExtension) {
+		const message = isIMSCC.value
+			? __('Please upload a valid IMSCC file.')
+			: __('Please upload a valid ZIP file.')
+		toast.error(message)
+		console.error(message)
 	}
 	return extension
 }
@@ -131,7 +159,7 @@ const uploadFile = (e: Event) => {
 	if (!file) return
 
 	let fileType = validateFile(file)
-	if (fileType !== 'zip') return
+	if (fileType !== (isIMSCC.value ? 'imscc' : 'zip')) return
 
 	uploadingFile.value = file
 	const uploader = new FileUploadHandler()
@@ -159,7 +187,7 @@ const uploadFile = (e: Event) => {
 			private: 1,
 		})
 		.then((data: any) => {
-			zip.value = data
+			uploadedCourseFile.value = data
 		})
 		.catch((error: any) => {
 			console.error('File upload error:', error)
@@ -171,11 +199,16 @@ const uploadFile = (e: Event) => {
 		})
 }
 
-const importZip = () => {
-	if (!zip.value) return
-	call('lms.lms.api.import_course_from_zip', {
-		zip_file_path: zip.value.file_url,
-	})
+const importCourse = () => {
+	if (!uploadedCourseFile.value) return
+	const method = isIMSCC.value
+		? 'lms.lms.api.import_course_from_imscc'
+		: 'lms.lms.api.import_course_from_zip'
+	const args = isIMSCC.value
+		? { imscc_file_path: uploadedCourseFile.value.file_url }
+		: { zip_file_path: uploadedCourseFile.value.file_url }
+
+	call(method, args)
 		.then((data: any) => {
 			toast.success('Course imported successfully!')
 			show.value = false
@@ -192,7 +225,7 @@ const importZip = () => {
 }
 
 const deleteFile = () => {
-	zip.value = null
+	uploadedCourseFile.value = null
 }
 
 const convertToMB = (bytes: number) => {

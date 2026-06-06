@@ -99,6 +99,11 @@
 		v-if="showCourseImportModal"
 		v-model="showCourseImportModal"
 	/>
+	<CourseImportModal
+		v-if="showCanvasImportModal"
+		v-model="showCanvasImportModal"
+		mode="imscc"
+	/>
 </template>
 <script setup>
 import {
@@ -144,6 +149,7 @@ const courseCount = ref(0)
 const router = useRouter()
 const showCourseModal = ref(false)
 const showCourseImportModal = ref(false)
+const showCanvasImportModal = ref(false)
 
 onMounted(() => {
 	setFiltersFromQuery()
@@ -364,6 +370,13 @@ const courseMenu = computed(() => {
 			icon: 'folder-plus',
 			onClick() {
 				showCourseImportModal.value = true
+			},
+		},
+		{
+			label: __('Import course from IMSCC (Canvas)'),
+			icon: 'upload',
+			onClick() {
+				showCanvasImportModal.value = true
 			},
 		},
 	]

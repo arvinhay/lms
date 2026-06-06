@@ -31,6 +31,7 @@ from pypika import functions as fn
 
 from lms.lms.course_import_export import export_course_zip, import_course_zip
 from lms.lms.doctype.course_lesson.course_lesson import save_progress
+from lms.lms.imscc_import import import_course_from_imscc as import_imscc_course
 from lms.lms.utils import (
 	LMS_ROLES,
 	can_modify_batch,
@@ -2447,3 +2448,9 @@ def export_course_as_zip(course_name: str):
 def import_course_from_zip(zip_file_path: str):
 	frappe.only_for(["Moderator", "Course Creator"])
 	return import_course_zip(zip_file_path)
+
+
+@frappe.whitelist()
+def import_course_from_imscc(imscc_file_path: str):
+	frappe.only_for(["Moderator", "Course Creator"])
+	return import_imscc_course(imscc_file_path)

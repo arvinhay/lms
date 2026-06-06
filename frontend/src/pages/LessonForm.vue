@@ -67,6 +67,37 @@
 								{{ __('Content') }}
 							</label>
 							<div
+								v-if="htmlBodyMode"
+								class="space-y-4"
+							>
+								<div class="rounded-md bg-surface-blue-1 p-3 text-sm text-ink-gray-7">
+									{{
+										__(
+											'This imported Canvas lesson is stored as HTML so its original layout, colours, tables, and embeds are preserved.'
+										)
+									}}
+								</div>
+								<textarea
+									v-model="lesson.body"
+									class="min-h-[360px] w-full rounded-md border border-outline-gray-2 bg-surface-white p-3 font-mono text-sm text-ink-gray-9 outline-none focus:border-outline-gray-4"
+								></textarea>
+								<div>
+									<div class="mb-2 text-sm font-medium text-ink-gray-5">
+										{{ __('Preview') }}
+									</div>
+									<div
+										class="prose prose-sm max-w-none rounded-md border border-outline-gray-2 bg-surface-white p-4"
+									>
+										<LessonContent
+											:content="lesson.body || ''"
+											:youtube="lesson.youtube"
+											:quiz-id="lesson.quiz_id"
+										/>
+									</div>
+								</div>
+							</div>
+							<div
+								v-else
 								id="content"
 								class="ProseMirror prose prose-table:table-fixed prose-td:p-2 prose-th:p-2 prose-td:border prose-th:border prose-td:border-outline-gray-2 prose-th:border-outline-gray-2 prose-td:relative prose-th:relative prose-th:bg-surface-gray-2 prose-sm max-w-none !whitespace-normal py-3"
 							></div>
@@ -103,6 +134,7 @@ import {
 import { sessionStore } from '../stores/session'
 import EditorJS from '@editorjs/editorjs'
 import LessonHelp from '@/components/LessonHelp.vue'
+import LessonContent from '@/components/LessonContent.vue'
 import { ChevronRight } from 'lucide-vue-next'
 import { getEditorTools, enablePlyr, sanitizeEditorJs } from '@/utils'
 import { useOnboarding, useTelemetry } from 'frappe-ui/frappe'
@@ -112,6 +144,7 @@ const editor = ref(null)
 const instructorEditor = ref(null)
 const user = inject('$user')
 const openInstructorEditor = ref(false)
+const htmlBodyMode = ref(false)
 const { capture } = useTelemetry()
 const { updateOnboardingStep } = useOnboarding('learning')
 let autoSaveInterval
@@ -189,6 +222,9 @@ const lessonDetails = createResource({
 })
 
 const addLessonContent = (data) => {
+	htmlBodyMode.value = isImportedHtmlLesson(data.lesson)
+	if (htmlBodyMode.value) return
+
 	editor.value.isReady.then(() => {
 		if (data.lesson.content) {
 			editor.value.render(sanitizeEditorJs(JSON.parse(data.lesson.content)))
@@ -340,11 +376,16 @@ const convertToJSON = (lessonData) => {
 			})
 		} else if (block.includes('{{ Embed')) {
 			let embed = block.match(/\(["']([^"']+?)["']\)/)[1]
+			let embedParts = embed.split('|||')
+			let embedUrl = embedParts.length > 1 ? embedParts[1] : embed
 			blocks.push({
 				type: 'embed',
 				data: {
-					service: embed.split('|||')[0],
-					embed: embed.split('|||')[1],
+					service:
+						embedParts.length > 1
+							? embedParts[0]
+							: getEmbedService(embedUrl),
+					embed: embedUrl,
 				},
 			})
 		} else if (block.includes('![]')) {
@@ -387,10 +428,39 @@ const convertToJSON = (lessonData) => {
 	return blocks
 }
 
+const isImportedHtmlLesson = (lessonData) => {
+	if (!lessonData?.body || lessonData.content) return false
+	return /<\/?(div|p|span|img|video|source|iframe|table|thead|tbody|tr|td|th|h[1-6]|ul|ol|li|a)\b/i.test(
+		lessonData.body
+	)
+}
+
+const getEmbedService = (url) => {
+	if (url.includes('youtube.com') || url.includes('youtu.be')) return 'youtube'
+	if (url.includes('refugee-education.h5p.com')) return 'h5p'
+	if (url.includes('docs.google.com/presentation')) return 'googleSlides'
+	if (url.includes('mentimeter.com')) return 'mentimeter'
+	if (url.includes('menti.com')) return 'menti'
+	return 'genericEmbed'
+}
+
 const saveLesson = (e) => {
 	showSuccessMessage = false
 	if (typeof e != 'undefined' && e.showSuccessMessage) {
 		showSuccessMessage = true
+	}
+	if (htmlBodyMode.value) {
+		lesson.content = ''
+		instructorEditor.value.save().then((outputData) => {
+			outputData = removeEmptyBlocks(outputData)
+			lesson.instructor_content = JSON.stringify(outputData)
+			if (lessonDetails.data?.lesson) {
+				editCurrentLesson()
+			} else {
+				createNewLesson()
+			}
+		})
+		return
 	}
 	editor.value.save().then((outputData) => {
 		outputData = removeEmptyBlocks(outputData)
@@ -469,7 +539,10 @@ const validateLesson = () => {
 	if (!lesson.title) {
 		return 'Title is required'
 	}
-	if (!lesson.content) {
+	if (htmlBodyMode.value && !lesson.body?.trim()) {
+		return 'Content is required'
+	}
+	if (!htmlBodyMode.value && !lesson.content) {
 		return 'Content is required'
 	}
 }

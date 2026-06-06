@@ -235,11 +235,51 @@ export function getEditorTools() {
 							'https://docs.google.com/presentation/d/<%= remote_id %>/embed',
 						html: "<iframe style='width: 100%; height: 30rem; border: 1px solid #D3D3D3; border-radius: 12px; margin: 1rem 0;' frameborder='0' allowfullscreen='true'></iframe>",
 					},
+					googleSlides: {
+						regex: /^(https:\/\/docs\.google\.com\/presentation\/d\/e\/[A-Za-z0-9_-]+\/embed(?:\?.*)?)$/,
+						embedUrl: '<%= remote_id %>',
+						html: `<iframe style='width: 100%; height: ${
+							window.innerWidth < 640 ? '20rem' : '38rem'
+						}; border: 1px solid #D3D3D3; border-radius: 12px; margin: 1rem 0;' frameborder='0' allowfullscreen='true'></iframe>`,
+						id: ([url]) => url,
+					},
+					h5p: {
+						regex: /^https:\/\/refugee-education\.h5p\.com\/content\/([0-9]+)\/embed$/,
+						embedUrl:
+							'https://refugee-education.h5p.com/content/<%= remote_id %>/embed',
+						html: `<iframe style='width: 100%; height: ${
+							window.innerWidth < 640 ? '38rem' : '56rem'
+						}; border: 0; border-radius: 12px; margin: 1rem 0;' frameborder='0' allowfullscreen='true' allow='autoplay *; geolocation *; microphone *; camera *; midi *; encrypted-media *'></iframe>`,
+					},
+					mentimeter: {
+						regex: /^(https:\/\/www\.mentimeter\.com\/app\/presentation\/[A-Za-z0-9_-]+\/embed(?:\?.*)?)$/,
+						embedUrl: '<%= remote_id %>',
+						html: `<iframe style='width: 100%; height: ${
+							window.innerWidth < 640 ? '32rem' : '45rem'
+						}; border: 0; border-radius: 12px; margin: 1rem 0;' frameborder='0' allowfullscreen='true'></iframe>`,
+						id: ([url]) => url,
+					},
+					menti: {
+						regex: /^(https:\/\/www\.menti\.com\/[A-Za-z0-9]+(?:\?.*)?)$/,
+						embedUrl: '<%= remote_id %>',
+						html: `<iframe style='width: 100%; height: ${
+							window.innerWidth < 640 ? '32rem' : '45rem'
+						}; border: 0; border-radius: 12px; margin: 1rem 0;' frameborder='0' allowfullscreen='true'></iframe>`,
+						id: ([url]) => url,
+					},
 					codesandbox: {
 						regex: /^https:\/\/codesandbox\.io\/(?:(?:p\/(?:sandbox|devbox)\/)|(?:embed\/)|(?:s\/))?([A-Za-z0-9_-]+)(?:[\/\?].*)?$/,
 						embedUrl:
 							'https://codesandbox.io/embed/<%= remote_id %>?view=editor+%2B+preview&module=%2Findex.html',
 						html: "<iframe style='width: 100%; height: 500px; border: 0; border-radius: 4px; overflow: hidden;' sandbox='allow-modals allow-forms allow-popups allow-scripts allow-same-origin' frameborder='0' allowfullscreen='true'></iframe>",
+					},
+					genericEmbed: {
+						regex: /^(https?:\/\/.+)$/,
+						embedUrl: '<%= remote_id %>',
+						html: `<iframe style='width: 100%; height: ${
+							window.innerWidth < 640 ? '32rem' : '40rem'
+						}; border: 0; border-radius: 12px; margin: 1rem 0;' frameborder='0' allowfullscreen='true'></iframe>`,
+						id: ([url]) => url,
 					},
 				},
 			},

@@ -57,7 +57,7 @@ class CourseLesson(Document):
 			self.save_lesson_details_in_quiz(self.instructor_content)
 
 	def save_lesson_details_in_quiz(self, content):
-		content = json.loads(self.content)
+		content = json.loads(content)
 		for block in content.get("blocks"):
 			if block.get("type") == "quiz":
 				quiz = block.get("data").get("quiz")
@@ -197,8 +197,11 @@ def get_next_lesson(course: str, lesson: str):
 
 
 def get_quiz_progress(lesson):
-	lesson_details = frappe.db.get_value("Course Lesson", lesson, ["body", "content"], as_dict=1)
+	lesson_details = frappe.db.get_value("Course Lesson", lesson, ["body", "content", "quiz_id"], as_dict=1)
 	quizzes = []
+
+	if lesson_details.quiz_id:
+		quizzes.append(lesson_details.quiz_id)
 
 	if lesson_details.content:
 		content = json.loads(lesson_details.content)

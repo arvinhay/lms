@@ -65,7 +65,14 @@
 				</router-link>
 			</div>
 		</header>
-		<div class="grid md:grid-cols-[70%,30%] h-[94vh]">
+		<div
+			class="grid h-[94vh]"
+			:class="
+				isOutlineCollapsed
+					? 'md:grid-cols-[minmax(0,1fr),3.5rem]'
+					: 'md:grid-cols-[minmax(0,1fr),26rem]'
+			"
+		>
 			<div v-if="lesson.data.no_preview" class="border-e">
 				<div class="shadow rounded-md w-3/4 mt-10 mx-auto text-center p-4">
 					<div class="flex items-center justify-center mt-4 gap-x-2">
@@ -255,8 +262,12 @@
 							class="ProseMirror prose prose-table:table-fixed prose-td:p-2 prose-th:p-2 prose-td:border prose-th:border prose-td:border-outline-gray-2 prose-th:border-outline-gray-2 prose-td:relative prose-th:relative prose-th:bg-surface-gray-2 prose-sm max-w-none !whitespace-normal mt-8"
 						>
 							<LessonContent
-								v-if="lesson.data?.body"
-								:content="lesson.data.body"
+								v-if="
+									lesson.data?.body ||
+									lesson.data?.youtube ||
+									lesson.data?.quiz_id
+								"
+								:content="lesson.data.body || ''"
 								:youtube="lesson.data.youtube"
 								:quizId="lesson.data.quiz_id"
 							/>
@@ -293,23 +304,53 @@
 				</div>
 			</div>
 			<div class="sticky top-10">
-				<div class="bg-surface-menu-bar p-5 border-b">
-					<div class="text-lg font-semibold text-ink-gray-9">
-						{{ lesson.data.course_title }}
-					</div>
+				<div
+					class="bg-surface-menu-bar border-b"
+					:class="isOutlineCollapsed ? 'p-2' : 'p-5'"
+				>
 					<div
-						v-if="user && lesson.data.membership"
-						class="text-sm mt-4 mb-2 text-ink-gray-5"
+						class="flex items-start"
+						:class="
+							isOutlineCollapsed ? 'justify-center' : 'justify-between gap-3'
+						"
 					>
-						{{ Math.ceil(lessonProgress) }}% {{ __('completed') }}
-					</div>
+						<div v-if="!isOutlineCollapsed" class="min-w-0">
+							<div class="text-lg font-semibold text-ink-gray-9">
+								{{ lesson.data.course_title }}
+							</div>
+							<div
+								v-if="user && lesson.data.membership"
+								class="text-sm mt-4 mb-2 text-ink-gray-5"
+							>
+								{{ Math.ceil(lessonProgress) }}% {{ __('completed') }}
+							</div>
 
-					<ProgressBar
-						v-if="user && lesson.data.membership"
-						:progress="lessonProgress"
-					/>
+							<ProgressBar
+								v-if="user && lesson.data.membership"
+								:progress="lessonProgress"
+							/>
+						</div>
+						<Tooltip
+							:text="
+								isOutlineCollapsed
+									? __('Show course outline')
+									: __('Hide course outline')
+							"
+						>
+							<Button @click="toggleOutline()" variant="ghost">
+								<template #icon>
+									<PanelRightOpen
+										v-if="isOutlineCollapsed"
+										class="size-4 stroke-1.5"
+									/>
+									<PanelRightClose v-else class="size-4 stroke-1.5" />
+								</template>
+							</Button>
+						</Tooltip>
+					</div>
 				</div>
 				<CourseOutline
+					v-if="!isOutlineCollapsed"
 					:courseName="courseName"
 					:key="chapterNumber"
 					:getProgress="lesson.data.membership ? true : false"
@@ -363,6 +404,8 @@ import {
 	Focus,
 	Info,
 	MessageCircleQuestion,
+	PanelRightClose,
+	PanelRightOpen,
 	TrendingUp,
 } from 'lucide-vue-next'
 import {
@@ -406,6 +449,7 @@ const plyrSources = ref([])
 const showInlineMenu = ref(false)
 const currentTab = ref(null)
 const completedLesson = ref(null)
+const isOutlineCollapsed = ref(false)
 let timerInterval = null
 
 const tabs = ref([])
@@ -428,6 +472,8 @@ const props = defineProps({
 onMounted(() => {
 	startTimer()
 	sidebarStore.isSidebarCollapsed = true
+	isOutlineCollapsed.value =
+		JSON.parse(localStorage.getItem('lms:lesson-outline-collapsed')) || false
 	document.addEventListener('fullscreenchange', attachFullscreenEvent)
 	socket.on('update_lesson_progress', (data) => {
 		if (data.course === props.courseName) {
@@ -500,10 +546,10 @@ const setupLesson = (data) => {
 }
 
 const checkQuiz = () => {
-	if (!editor.value && lesson.body) {
+	if (!editor.value && (lesson.data?.body || lesson.data?.quiz_id)) {
 		const quizRegex = /\{\{ Quiz\(".*"\) \}\}/
-		hasQuiz.value = quizRegex.test(lesson.body)
-		if (!hasQuiz.value && !zenModeEnabled) {
+		hasQuiz.value = lesson.data?.quiz_id || quizRegex.test(lesson.data?.body)
+		if (!hasQuiz.value && !zenModeEnabled.value) {
 			allowDiscussions.value = true
 		} else {
 			allowDiscussions.value = false
@@ -628,12 +674,21 @@ const resetLessonState = (newChapterNumber, newLessonNumber) => {
 	editor.value = null
 	instructorEditor.value = null
 	allowDiscussions.value = false
+	hasQuiz.value = false
 	lesson.submit({
 		chapter: newChapterNumber,
 		lesson: newLessonNumber,
 	})
 	clearInterval(timerInterval)
 	timer.value = 0
+}
+
+const toggleOutline = () => {
+	isOutlineCollapsed.value = !isOutlineCollapsed.value
+	localStorage.setItem(
+		'lms:lesson-outline-collapsed',
+		JSON.stringify(isOutlineCollapsed.value)
+	)
 }
 
 const trackVideoWatchDuration = () => {
