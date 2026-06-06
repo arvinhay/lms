@@ -9,57 +9,60 @@
 			allowfullscreen
 		></iframe>
 	</div>
-	<div v-for="block in content?.split('\n\n')">
-		<div v-if="block.includes('{{ YouTubeVideo')">
-			<iframe
-				class="youtube-video"
-				:src="getYouTubeVideoSource(block)"
-				width="100%"
-				:height="screenSize.width < 640 ? 200 : 400"
-				frameborder="0"
-				allowfullscreen
-			></iframe>
+	<div v-if="!hasEmbeddedBlocks" v-html="renderDocument(content)"></div>
+	<template v-else>
+		<div v-for="block in content?.split('\n\n')">
+			<div v-if="block.includes('{{ YouTubeVideo')">
+				<iframe
+					class="youtube-video"
+					:src="getYouTubeVideoSource(block)"
+					width="100%"
+					:height="screenSize.width < 640 ? 200 : 400"
+					frameborder="0"
+					allowfullscreen
+				></iframe>
+			</div>
+			<div v-else-if="block.includes('{{ Quiz') && !quizId">
+				<Quiz :quiz="getId(block)" />
+			</div>
+			<div v-else-if="block.includes('{{ Video')">
+				<video
+					controls
+					width="100%"
+					controlsList="nodownload"
+					oncontextmenu="return false;"
+				>
+					<source :src="getId(block)" type="video/mp4" />
+				</video>
+			</div>
+			<div v-else-if="block.includes('{{ PDF')">
+				<iframe
+					:src="getPDFSource(block)"
+					width="100%"
+					height="700px"
+					frameborder="0"
+					allowfullscreen
+				></iframe>
+			</div>
+			<div v-else-if="block.includes('{{ Audio')">
+				<audio width="100%" controls controlsList="nodownload">
+					<source :src="getId(block)" type="audio/mp3" />
+				</audio>
+			</div>
+			<div v-else-if="block.includes('{{ Embed')">
+				<iframe
+					width="100%"
+					:height="getEmbedHeight(block)"
+					:src="getId(block)"
+					frameborder="0"
+					allow="autoplay *; geolocation *; microphone *; camera *; midi *; encrypted-media *"
+					allowfullscreen
+				>
+				</iframe>
+			</div>
+			<div v-else v-html="renderSafe(block)"></div>
 		</div>
-		<div v-else-if="block.includes('{{ Quiz')">
-			<Quiz :quiz="getId(block)" />
-		</div>
-		<div v-else-if="block.includes('{{ Video')">
-			<video
-				controls
-				width="100%"
-				controlsList="nodownload"
-				oncontextmenu="return false;"
-			>
-				<source :src="getId(block)" type="video/mp4" />
-			</video>
-		</div>
-		<div v-else-if="block.includes('{{ PDF')">
-			<iframe
-				:src="getPDFSource(block)"
-				width="100%"
-				height="700px"
-				frameborder="0"
-				allowfullscreen
-			></iframe>
-		</div>
-		<div v-else-if="block.includes('{{ Audio')">
-			<audio width="100%" controls controlsList="nodownload">
-				<source :src="getId(block)" type="audio/mp3" />
-			</audio>
-		</div>
-		<div v-else-if="block.includes('{{ Embed')">
-			<iframe
-				width="100%"
-				:height="getEmbedHeight(block)"
-				:src="getId(block)"
-				frameborder="0"
-				allow="autoplay *; geolocation *; microphone *; camera *; midi *; encrypted-media *"
-				allowfullscreen
-			>
-			</iframe>
-		</div>
-		<div v-else v-html="renderSafe(block)"></div>
-	</div>
+	</template>
 	<div v-if="quizId">
 		<Quiz :quiz="quizId" />
 	</div>
@@ -79,6 +82,13 @@ const markdown = new MarkdownIt({
 })
 
 const renderSafe = (block) => DOMPurify.sanitize(markdown.render(block))
+
+const renderDocument = (value) => {
+	const source = /<\/?[a-z][\s\S]*>/i.test(value || '')
+		? value
+		: markdown.render(value || '')
+	return DOMPurify.sanitize(source)
+}
 
 const props = defineProps({
 	content: {
@@ -112,6 +122,12 @@ const getId = (block) => {
 
 const hasH5PEmbed = computed(() =>
 	props.content?.includes('refugee-education.h5p.com')
+)
+
+const hasEmbeddedBlocks = computed(() =>
+	/{{\s*(YouTubeVideo|Quiz|Video|PDF|Audio|Embed)\s*\(/.test(
+		props.content || ''
+	)
 )
 
 const loadH5PResizer = () => {

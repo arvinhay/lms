@@ -13,6 +13,8 @@ import frappe
 from frappe import _
 from frappe.utils.file_manager import is_safe_path
 
+from lms.lms.utils import get_lesson_count
+
 
 WEB_RESOURCE_PREFIX = "web_resources/"
 IMSCC_FILEBASE = "$IMS-CC-FILEBASE$/"
@@ -47,6 +49,7 @@ def import_course_from_imscc(imscc_file_path: str) -> str:
 				if lesson:
 					_create_lesson_reference(chapter.name, lesson.name, lesson_idx)
 
+		frappe.db.set_value("LMS Course", course.name, "lessons", get_lesson_count(course.name))
 		return course.name
 
 
@@ -391,7 +394,7 @@ def _create_quiz_lesson(
 			"chapter": chapter_name,
 			"course": course_name,
 			"title": item.get("title") or quiz.title,
-			"body": f'{{{{ Quiz("{quiz.name}") }}}}',
+			"body": "",
 			"quiz_id": quiz.name,
 			"content": None,
 		}
