@@ -15,23 +15,46 @@
 					</Button>
 				</header>
 				<div class="py-5">
-					<div class="grid grid-cols-2 gap-5 w-5/6 mx-auto">
-						<FormControl
-							v-model="lesson.title"
-							:label="__('Title')"
-							class="mb-4"
-							:required="true"
-							autocomplete="off"
-						/>
-						<Switch
-							v-model="lesson.include_in_preview"
-							:label="__('Include in Preview')"
-							:description="
-								__(
-									'If enabled, the lesson will also be accessible to users who are not enrolled in the course.'
-								)
-							"
-						/>
+					<div class="w-5/6 mx-auto space-y-5">
+						<div class="grid grid-cols-2 gap-5">
+							<FormControl
+								v-model="lesson.title"
+								:label="__('Title')"
+								:required="true"
+								autocomplete="off"
+							/>
+							<Switch
+								v-model="lesson.include_in_preview"
+								:label="__('Include in Preview')"
+								:description="
+									__(
+										'If enabled, the lesson will also be accessible to users who are not enrolled in the course.'
+									)
+								"
+							/>
+						</div>
+						<div
+							class="rounded-md border border-outline-gray-2 bg-surface-white p-4"
+						>
+							<div
+								class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+							>
+								<div>
+									<div class="text-sm font-medium text-ink-gray-8">
+										{{ __('Lesson Format') }}
+									</div>
+									<div class="mt-1 text-sm text-ink-gray-5">
+										{{ lessonFormatDescription }}
+									</div>
+								</div>
+								<TabButtons
+									:buttons="lessonFormatOptions"
+									:model-value="lessonFormat"
+									@update:modelValue="setLessonFormat"
+									class="w-fit"
+								/>
+							</div>
+						</div>
 					</div>
 					<div class="border-t mt-4">
 						<div class="w-5/6 mx-auto pt-4">
@@ -67,21 +90,65 @@
 								{{ __('Content') }}
 							</label>
 							<div
-								v-if="htmlBodyMode"
+								v-show="htmlBodyMode"
 								class="space-y-4"
 							>
-								<div class="rounded-md bg-surface-blue-1 p-3 text-sm text-ink-gray-7">
-									{{
-										__(
-											'This imported Canvas lesson is stored as HTML so its original layout, colours, tables, and embeds are preserved.'
-										)
-									}}
+								<div
+									class="flex flex-col gap-3 rounded-md border border-outline-gray-2 bg-surface-gray-1 p-3 sm:flex-row sm:items-center sm:justify-between"
+								>
+									<div class="text-sm text-ink-gray-6">
+										{{
+											__(
+												'Preserved HTML keeps imported Canvas layout and media intact. Edit HTML only.'
+											)
+										}}
+									</div>
+									<TabButtons
+										:buttons="htmlEditorTabs"
+										v-model="htmlEditorTab"
+										class="w-fit"
+									/>
 								</div>
-								<textarea
-									v-model="lesson.body"
-									class="min-h-[360px] w-full rounded-md border border-outline-gray-2 bg-surface-white p-3 font-mono text-sm text-ink-gray-9 outline-none focus:border-outline-gray-4"
-								></textarea>
-								<div>
+								<div v-show="htmlEditorTab === 'edit'" class="space-y-3">
+									<Code
+										v-model="lesson.body"
+										language="html"
+										height="430px"
+										max-height="620px"
+										:show-border="true"
+									/>
+									<div class="flex items-center justify-between gap-3">
+										<Button @click="checkHtmlLesson">
+											{{ __('Check Lesson') }}
+										</Button>
+										<div class="text-sm text-ink-gray-5">
+											{{ __('Use Preview before saving major edits.') }}
+										</div>
+									</div>
+									<div
+										v-if="htmlCheckRan"
+										class="rounded-md border p-3 text-sm"
+										:class="
+											htmlCheckIssues.length
+												? 'border-outline-gray-3 bg-surface-gray-1 text-ink-gray-8'
+												: 'border-outline-gray-2 bg-surface-white text-ink-gray-8'
+										"
+									>
+										<div class="font-medium">
+											{{
+												htmlCheckIssues.length
+													? __('Review these HTML items')
+													: __('No obvious HTML issues found')
+											}}
+										</div>
+										<ul v-if="htmlCheckIssues.length" class="mt-2 list-disc ps-5">
+											<li v-for="issue in htmlCheckIssues" :key="issue">
+												{{ issue }}
+											</li>
+										</ul>
+									</div>
+								</div>
+								<div v-show="htmlEditorTab === 'preview'">
 									<div class="mb-2 text-sm font-medium text-ink-gray-5">
 										{{ __('Preview') }}
 									</div>
@@ -97,7 +164,7 @@
 								</div>
 							</div>
 							<div
-								v-else
+								v-show="!htmlBodyMode"
 								id="content"
 								class="ProseMirror prose prose-table:table-fixed prose-td:p-2 prose-th:p-2 prose-td:border prose-th:border prose-td:border-outline-gray-2 prose-th:border-outline-gray-2 prose-td:relative prose-th:relative prose-th:bg-surface-gray-2 prose-sm max-w-none !whitespace-normal py-3"
 							></div>
@@ -120,6 +187,7 @@ import {
 	createResource,
 	FormControl,
 	Switch,
+	TabButtons,
 	usePageMeta,
 	toast,
 } from 'frappe-ui'
@@ -130,11 +198,13 @@ import {
 	inject,
 	ref,
 	onBeforeUnmount,
+	nextTick,
 } from 'vue'
 import { sessionStore } from '../stores/session'
 import EditorJS from '@editorjs/editorjs'
 import LessonHelp from '@/components/LessonHelp.vue'
 import LessonContent from '@/components/LessonContent.vue'
+import Code from '@/components/Controls/Code.vue'
 import { ChevronRight } from 'lucide-vue-next'
 import { getEditorTools, enablePlyr, sanitizeEditorJs } from '@/utils'
 import { useOnboarding, useTelemetry } from 'frappe-ui/frappe'
@@ -145,6 +215,10 @@ const instructorEditor = ref(null)
 const user = inject('$user')
 const openInstructorEditor = ref(false)
 const htmlBodyMode = ref(false)
+const lessonFormat = ref('native')
+const htmlEditorTab = ref('edit')
+const htmlCheckRan = ref(false)
+const htmlCheckIssues = ref([])
 const { capture } = useTelemetry()
 const { updateOnboardingStep } = useOnboarding('learning')
 let autoSaveInterval
@@ -198,6 +272,35 @@ const lesson = reactive({
 	content: '',
 })
 
+const lessonFormatOptions = computed(() => [
+	{
+		label: __('Frappe Native'),
+		value: 'native',
+	},
+	{
+		label: __('Preserved HTML'),
+		value: 'html',
+	},
+])
+
+const htmlEditorTabs = computed(() => [
+	{
+		label: __('Edit HTML'),
+		value: 'edit',
+	},
+	{
+		label: __('Preview'),
+		value: 'preview',
+	},
+])
+
+const lessonFormatDescription = computed(() => {
+	if (lessonFormat.value === 'html') {
+		return __('HTML lessons preserve imported Canvas styling and media.')
+	}
+	return __('Native lessons use the standard Frappe lesson editor.')
+})
+
 const lessonDetails = createResource({
 	url: 'lms.lms.utils.get_lesson_creation_details',
 	params: {
@@ -222,7 +325,7 @@ const lessonDetails = createResource({
 })
 
 const addLessonContent = (data) => {
-	htmlBodyMode.value = isImportedHtmlLesson(data.lesson)
+	setHtmlBodyMode(isImportedHtmlLesson(data.lesson))
 	if (htmlBodyMode.value) return
 
 	editor.value.isReady.then(() => {
@@ -234,6 +337,80 @@ const addLessonContent = (data) => {
 				blocks: blocks,
 			})
 		}
+	})
+}
+
+const setHtmlBodyMode = (enabled) => {
+	htmlBodyMode.value = enabled
+	lessonFormat.value = enabled ? 'html' : 'native'
+	htmlEditorTab.value = enabled ? htmlEditorTab.value : 'edit'
+	htmlCheckRan.value = false
+	htmlCheckIssues.value = []
+}
+
+const setLessonFormat = async (format) => {
+	if (format === lessonFormat.value) return
+
+	if (format === 'html') {
+		const hasNativeContent = await nativeEditorHasContent()
+		if (
+			hasNativeContent &&
+			!window.confirm(
+				__(
+					'Switching to Preserved HTML will save this lesson as HTML instead of native Frappe blocks. Continue?'
+				)
+			)
+		) {
+			return
+		}
+		setHtmlBodyMode(true)
+		return
+	}
+
+	if (
+		lesson.body?.trim() &&
+		!window.confirm(
+			__(
+				'Switching to Frappe Native can flatten preserved HTML styling when saved. Continue?'
+			)
+		)
+	) {
+		return
+	}
+
+	setHtmlBodyMode(false)
+	await nextTick()
+	renderBodyInNativeEditor()
+}
+
+const nativeEditorHasContent = async () => {
+	if (lesson.content) return true
+	if (!editor.value) return false
+
+	try {
+		await editor.value.isReady
+		let outputData = await editor.value.save()
+		outputData = removeEmptyBlocks(outputData)
+		return outputData.blocks.some((block) => {
+			if (block.type === 'paragraph') {
+				return Boolean(block.data?.text?.trim())
+			}
+			return Object.keys(block.data || {}).some((key) => {
+				let value = block.data[key]
+				return Array.isArray(value) ? value.length : Boolean(value)
+			})
+		})
+	} catch {
+		return false
+	}
+}
+
+const renderBodyInNativeEditor = () => {
+	if (!lesson.body || !editor.value) return
+	editor.value.isReady.then(() => {
+		editor.value.render({
+			blocks: convertToJSON(lesson),
+		})
 	})
 }
 
@@ -424,6 +601,14 @@ const convertToJSON = (lessonData) => {
 			},
 		})
 	}
+	if (lessonData.quiz_id) {
+		blocks.push({
+			type: 'quiz',
+			data: {
+				quiz: lessonData.quiz_id,
+			},
+		})
+	}
 
 	return blocks
 }
@@ -444,6 +629,41 @@ const getEmbedService = (url) => {
 	return 'genericEmbed'
 }
 
+const getHtmlCheckIssues = () => {
+	let body = lesson.body || ''
+	let issues = []
+
+	if (body.includes('$IMS-CC-FILEBASE$')) {
+		issues.push(
+			__(
+				'There are unresolved Canvas file links. Re-import or replace them with Frappe file URLs.'
+			)
+		)
+	}
+	if (/data-api-(endpoint|returntype)=/i.test(body)) {
+		issues.push(__('Canvas API attributes are still present in the HTML.'))
+	}
+	if (/<video\b(?![^>]*\bcontrols\b)[^>]*>/i.test(body)) {
+		issues.push(__('At least one video tag is missing controls.'))
+	}
+	if (/<(?:img|iframe|source)\b[^>]*\bsrc=(["'])\s*\1/i.test(body)) {
+		issues.push(__('At least one media element has an empty source.'))
+	}
+	if (/<script\b/i.test(body)) {
+		issues.push(__('Script tags should not be used inside lessons.'))
+	}
+
+	return issues
+}
+
+const checkHtmlLesson = () => {
+	htmlCheckIssues.value = getHtmlCheckIssues()
+	htmlCheckRan.value = true
+	if (!htmlCheckIssues.value.length) {
+		toast.success(__('No obvious HTML issues found'))
+	}
+}
+
 const saveLesson = (e) => {
 	showSuccessMessage = false
 	if (typeof e != 'undefined' && e.showSuccessMessage) {
@@ -451,6 +671,8 @@ const saveLesson = (e) => {
 	}
 	if (htmlBodyMode.value) {
 		lesson.content = ''
+		htmlCheckIssues.value = getHtmlCheckIssues()
+		htmlCheckRan.value = htmlCheckIssues.value.length > 0
 		instructorEditor.value.save().then((outputData) => {
 			outputData = removeEmptyBlocks(outputData)
 			lesson.instructor_content = JSON.stringify(outputData)
@@ -465,6 +687,7 @@ const saveLesson = (e) => {
 	editor.value.save().then((outputData) => {
 		outputData = removeEmptyBlocks(outputData)
 		lesson.content = JSON.stringify(outputData)
+		lesson.body = ''
 		instructorEditor.value.save().then((outputData) => {
 			outputData = removeEmptyBlocks(outputData)
 			lesson.instructor_content = JSON.stringify(outputData)
@@ -541,6 +764,12 @@ const validateLesson = () => {
 	}
 	if (htmlBodyMode.value && !lesson.body?.trim()) {
 		return 'Content is required'
+	}
+	if (htmlBodyMode.value && /<script\b/i.test(lesson.body || '')) {
+		return 'Script tags should not be used inside lessons.'
+	}
+	if (htmlBodyMode.value && (lesson.body || '').includes('$IMS-CC-FILEBASE$')) {
+		return 'Resolve Canvas file links before saving.'
 	}
 	if (!htmlBodyMode.value && !lesson.content) {
 		return 'Content is required'
