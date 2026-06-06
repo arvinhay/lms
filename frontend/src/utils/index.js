@@ -244,12 +244,13 @@ export function getEditorTools() {
 						id: ([url]) => url,
 					},
 					h5p: {
-						regex: /^https:\/\/refugee-education\.h5p\.com\/content\/([0-9]+)\/embed$/,
-						embedUrl:
-							'https://refugee-education.h5p.com/content/<%= remote_id %>/embed',
+						regex:
+							/^(https:\/\/(?:[A-Za-z0-9-]+\.)*h5p\.com\/content\/[0-9]+\/embed(?:\?.*)?)$/,
+						embedUrl: '<%= remote_id %>',
 						html: `<iframe style='width: 100%; height: ${
 							window.innerWidth < 640 ? '38rem' : '56rem'
 						}; border: 0; border-radius: 12px; margin: 1rem 0;' frameborder='0' allowfullscreen='true' allow='autoplay *; geolocation *; microphone *; camera *; midi *; encrypted-media *'></iframe>`,
+						id: ([url]) => url,
 					},
 					mentimeter: {
 						regex: /^(https:\/\/www\.mentimeter\.com\/app\/presentation\/[A-Za-z0-9_-]+\/embed(?:\?.*)?)$/,

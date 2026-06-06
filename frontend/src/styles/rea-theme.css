@@ -1,3 +1,62 @@
+:root {
+	--lms-document-background: transparent;
+	--lms-document-border: transparent;
+	--lms-document-text: #1f2933;
+	--lms-document-link: #167b8d;
+}
+
+:root[data-lms-theme='dark'] {
+	--lms-document-background: #f8fafc;
+	--lms-document-border: #d1d5db;
+	--lms-document-text: #1f2933;
+	--lms-document-link: #116574;
+}
+
+.lms-html-document {
+	max-width: 100%;
+	overflow-x: auto;
+	overflow-wrap: anywhere;
+	background: var(--lms-document-background);
+	border: 1px solid var(--lms-document-border);
+	color: var(--lms-document-text);
+}
+
+.lms-html-document img,
+.lms-html-document video,
+.lms-html-document iframe,
+.lms-html-document embed,
+.lms-html-document object {
+	display: block;
+	max-width: 100%;
+}
+
+.lms-html-document img,
+.lms-html-document video {
+	height: auto;
+}
+
+.lms-html-document iframe {
+	width: 100%;
+}
+
+:root[data-lms-theme='dark'] .lms-html-document {
+	border-radius: 6px;
+	padding: 1rem;
+	color-scheme: light;
+}
+
+:root[data-lms-theme='dark']
+	.lms-html-document
+	:where(h1, h2, h3, h4, h5, h6, p, li, span, strong, em, td, th):not(
+		[style*='color' i]
+	) {
+	color: inherit !important;
+}
+
+:root[data-lms-theme='dark'] .lms-html-document a:not([style*='color' i]) {
+	color: var(--lms-document-link) !important;
+}
+
 :root[data-lms-theme='rea'] {
 	--rea-navbar-bg: #ffffff;
 	--rea-body-bg: #fbf3e2;
@@ -159,6 +218,10 @@
 }
 
 :root[data-lms-theme='rea'] .rea-course-outline {
+	background-color: var(--rea-body-bg);
+}
+
+:root[data-lms-theme='rea'] .rea-course-outline-panel {
 	background-color: var(--rea-body-bg);
 }
 

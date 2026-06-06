@@ -1,10 +1,10 @@
 <template>
 	<div v-if="lesson.data" class="">
 		<header
-			class="rea-page-header sticky top-0 z-10 flex items-center justify-between border-b bg-surface-white px-3 py-2.5 sm:px-5"
+			class="rea-page-header sticky top-0 z-10 flex min-w-0 items-center justify-between gap-3 border-b bg-surface-white px-3 py-2.5 sm:px-5"
 		>
-			<Breadcrumbs class="h-7" :items="breadcrumbs" />
-			<div class="flex items-center gap-x-2">
+			<Breadcrumbs class="h-7 min-w-0 flex-1 overflow-hidden" :items="breadcrumbs" />
+			<div class="flex shrink-0 items-center gap-x-2">
 				<Tooltip v-if="canGoZen()" :text="__('Zen Mode')">
 					<Button @click="goFullScreen()">
 						<template #icon>
@@ -66,10 +66,10 @@
 			</div>
 		</header>
 		<div
-			class="grid h-[94vh]"
+			class="grid h-[calc(100vh-3.25rem)] min-w-0"
 			:class="
 				isOutlineCollapsed
-					? 'md:grid-cols-[minmax(0,1fr),3.5rem]'
+					? 'md:grid-cols-1'
 					: 'md:grid-cols-[minmax(0,1fr),26rem]'
 			"
 		>
@@ -114,7 +114,7 @@
 			<div
 				v-else
 				ref="lessonContainer"
-				class="bg-surface-white"
+				class="min-w-0 bg-surface-white"
 				:class="{
 					'overflow-y-auto': zenModeEnabled,
 				}"
@@ -303,10 +303,21 @@
 					</div>
 				</div>
 			</div>
-			<div class="sticky top-10">
+			<div
+				class="rea-course-outline-panel"
+				:class="
+					isOutlineCollapsed
+						? 'fixed end-0 top-[3.25rem] z-20 w-12'
+						: 'h-full min-w-0 overflow-y-auto border-s bg-surface-menu-bar'
+				"
+			>
 				<div
-					class="bg-surface-menu-bar border-b"
-					:class="isOutlineCollapsed ? 'p-2' : 'p-5'"
+					class="border-b"
+					:class="
+						isOutlineCollapsed
+							? 'rounded-bl-md border-s bg-surface-white p-2 shadow-sm'
+							: 'sticky top-0 z-10 bg-surface-menu-bar p-5'
+					"
 				>
 					<div
 						class="flex items-start"

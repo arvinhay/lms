@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import html
 import os
+import posixpath
 import re
 import zipfile
 from urllib.parse import quote, unquote
@@ -13,7 +14,7 @@ import frappe
 from frappe import _
 from frappe.utils.file_manager import is_safe_path
 
-from lms.lms.utils import get_lesson_count
+from lms.lms.utils import get_lesson_count, get_lesson_index, get_lesson_url
 
 
 WEB_RESOURCE_PREFIX = "web_resources/"
@@ -32,6 +33,7 @@ def import_course_from_imscc(imscc_file_path: str) -> str:
 		asset_map = _create_assets(zip_file)
 		course = _create_course(zip_file, resources, asset_map)
 		modules = _get_modules(zip_file, resources)
+		resource_lessons = {}
 
 		for chapter_idx, module in enumerate(modules, start=1):
 			chapter = _create_chapter(course.name, module["title"])
@@ -48,7 +50,10 @@ def import_course_from_imscc(imscc_file_path: str) -> str:
 				)
 				if lesson:
 					_create_lesson_reference(chapter.name, lesson.name, lesson_idx)
+					if item.get("identifierref"):
+						resource_lessons[item["identifierref"]] = lesson.name
 
+		_rewrite_internal_lesson_links(course.name, resource_lessons)
 		frappe.db.set_value("LMS Course", course.name, "lessons", get_lesson_count(course.name))
 		return course.name
 
@@ -130,6 +135,7 @@ def _get_manifest_resources(zip_file: zipfile.ZipFile) -> dict:
 		resources[identifier] = {
 			"href": resource.attrib.get("href"),
 			"type": resource.attrib.get("type"),
+			"attributes": dict(resource.attrib),
 			"files": [
 				file_node.attrib.get("href")
 				for file_node in _children(resource, "file")
@@ -236,6 +242,10 @@ def _get_modules_from_canvas_meta(zip_file: zipfile.ZipFile) -> list[dict]:
 					"title": _text(item, "title"),
 					"identifierref": _text(item, "identifierref"),
 					"content_type": _text(item, "content_type"),
+					"url": _text(item, "url"),
+					"html_url": _text(item, "html_url"),
+					"new_tab": _text(item, "new_tab"),
+					"indent": _safe_int(_text(item, "indent"), 0),
 					"position": _safe_int(_text(item, "position"), len(items) + 1),
 				}
 			)
@@ -255,26 +265,64 @@ def _get_modules_from_canvas_meta(zip_file: zipfile.ZipFile) -> list[dict]:
 def _get_modules_from_manifest(zip_file: zipfile.ZipFile, resources: dict) -> list[dict]:
 	root = _read_xml(zip_file, "imsmanifest.xml")
 	organization = next(iter(_descendants(root, "organization")), None)
-	items = []
-
-	for item in _descendants(organization, "item"):
-		identifierref = item.attrib.get("identifierref")
-		if not identifierref:
-			continue
-
-		items.append(
-			{
-				"title": _text(item, "title") or _title_from_resource(resources, identifierref),
-				"identifierref": identifierref,
-				"content_type": _content_type_from_resource(resources, identifierref),
-				"position": len(items) + 1,
-			}
-		)
-
-	if not items:
+	if organization is None:
 		return []
 
-	return [{"title": _("Course Content"), "position": 1, "items": items}]
+	modules = []
+	loose_items = []
+	for top_level_item in _children(organization, "item"):
+		child_items = _manifest_leaf_items(top_level_item, resources)
+		if child_items:
+			modules.append(
+				{
+					"title": _text(top_level_item, "title") or _("Course Content"),
+					"position": len(modules) + 1,
+					"items": child_items,
+				}
+			)
+			continue
+
+		row = _manifest_item_row(top_level_item, resources, len(loose_items) + 1)
+		if row:
+			loose_items.append(row)
+
+	if loose_items:
+		modules.insert(
+			0,
+			{"title": _("Course Content"), "position": 1, "items": loose_items},
+		)
+		for position, module in enumerate(modules, start=1):
+			module["position"] = position
+
+	return modules
+
+
+def _manifest_leaf_items(parent, resources: dict) -> list[dict]:
+	items = []
+	for item in _children(parent, "item"):
+		nested_items = _children(item, "item")
+		if nested_items:
+			items.extend(_manifest_leaf_items(item, resources))
+			continue
+
+		row = _manifest_item_row(item, resources, len(items) + 1)
+		if row:
+			items.append(row)
+
+	return items
+
+
+def _manifest_item_row(item, resources: dict, position: int) -> dict | None:
+	identifierref = item.attrib.get("identifierref")
+	if not identifierref:
+		return None
+
+	return {
+		"title": _text(item, "title") or _title_from_resource(resources, identifierref),
+		"identifierref": identifierref,
+		"content_type": _content_type_from_resource(resources, identifierref),
+		"position": position,
+	}
 
 
 def _get_modules_from_wiki_resources(resources: dict) -> list[dict]:
@@ -357,11 +405,16 @@ def _create_html_lesson(
 	asset_map: dict,
 ):
 	resource = resources.get(item.get("identifierref"), {})
-	href = resource.get("href") or next(iter(resource.get("files", [])), None)
-	if not href:
+	href = _get_resource_html_path(zip_file, resource, resources)
+	if href:
+		body = _clean_html(_read_text(zip_file, href), asset_map, href)
+	elif external_url := _get_external_resource_url(zip_file, item, resource):
+		body = _build_external_resource_body(external_url, item.get("title"))
+	elif asset_url := _get_resource_asset_url(resource, resources, asset_map):
+		body = _build_attachment_body(asset_url, item.get("title"))
+	else:
 		return None
 
-	body = _clean_html(_read_text(zip_file, href), asset_map)
 	title = item.get("title") or _extract_html_title(body) or _title_from_href(href)
 
 	return frappe.get_doc(
@@ -374,6 +427,92 @@ def _create_html_lesson(
 			"content": None,
 		}
 	).insert(ignore_permissions=True)
+
+
+def _get_resource_html_path(zip_file: zipfile.ZipFile, resource: dict, resources: dict) -> str | None:
+	for candidate in _get_resource_files(resource, resources):
+		if not candidate or candidate not in zip_file.namelist():
+			continue
+		if candidate.lower().endswith((".html", ".htm")):
+			return candidate
+
+	return None
+
+
+def _get_resource_files(resource: dict, resources: dict) -> list[str]:
+	files = [resource.get("href"), *resource.get("files", [])]
+	for dependency in resource.get("dependencies", []):
+		dependency_resource = resources.get(dependency, {})
+		files.extend([dependency_resource.get("href"), *dependency_resource.get("files", [])])
+	return [path for path in dict.fromkeys(files) if path]
+
+
+def _get_external_resource_url(zip_file: zipfile.ZipFile, item: dict, resource: dict) -> str | None:
+	for value in (item.get("url"), item.get("html_url"), resource.get("href")):
+		if _is_external_url(value):
+			return value
+
+	content_type = (item.get("content_type") or "").lower()
+	resource_type = (resource.get("type") or "").lower()
+	if not any(token in f"{content_type} {resource_type}" for token in ("external", "imswl", "imslticc")):
+		return None
+
+	for path in [resource.get("href"), *resource.get("files", [])]:
+		if not path or not path.lower().endswith((".xml", ".imswl", ".imslticc")):
+			continue
+		root = _read_xml(zip_file, path) if path else None
+		for node in root.iter() if root is not None else []:
+			if _local_name(node.tag) not in {"url", "launch_url", "secure_launch_url"}:
+				continue
+			value = node.attrib.get("href") or (node.text or "").strip()
+			if _is_external_url(value):
+				return value
+
+	return None
+
+
+def _get_resource_asset_url(resource: dict, resources: dict, asset_map: dict) -> str | None:
+	for path in _get_resource_files(resource, resources):
+		if path in asset_map:
+			return asset_map[path]
+	return None
+
+
+def _build_external_resource_body(url: str, title: str | None = None) -> str:
+	safe_url = html.escape(url, quote=True)
+	safe_title = html.escape(title or _("Open external content"), quote=True)
+	if _is_embeddable_url(url):
+		return (
+			f'<iframe src="{safe_url}" title="{safe_title}" width="100%" height="720" '
+			'loading="lazy" allowfullscreen '
+			'allow="autoplay *; geolocation *; microphone *; camera *; midi *; encrypted-media *">'
+			"</iframe>"
+		)
+
+	return (
+		f'<p><a href="{safe_url}" target="_blank" rel="noopener noreferrer">'
+		f"{safe_title}</a></p>"
+	)
+
+
+def _build_attachment_body(file_url: str, title: str | None = None) -> str:
+	safe_url = html.escape(file_url, quote=True)
+	safe_title = html.escape(title or _("Course attachment"), quote=True)
+	extension = os.path.splitext(file_url.split("?", 1)[0])[1].lower()
+
+	if extension in {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}:
+		return f'<p><img src="{safe_url}" alt="{safe_title}"></p>'
+	if extension in {".mp4", ".webm", ".ogg"}:
+		return f'<video controls width="100%"><source src="{safe_url}"></video>'
+	if extension in {".mp3", ".wav", ".m4a", ".aac"}:
+		return f'<audio controls width="100%"><source src="{safe_url}"></audio>'
+	if extension == ".pdf":
+		return f'<iframe src="{safe_url}" title="{safe_title}" width="100%" height="720"></iframe>'
+
+	return (
+		f'<p><a href="{safe_url}" target="_blank" rel="noopener noreferrer" download>'
+		f"{safe_title}</a></p>"
+	)
 
 
 def _create_quiz_lesson(
@@ -550,9 +689,10 @@ def _get_correct_answer_ids(item_node) -> list[str]:
 	return [node.text.strip() for node in _descendants(item_node, "varequal") if node.text]
 
 
-def _clean_html(raw_html: str, asset_map: dict) -> str:
+def _clean_html(raw_html: str, asset_map: dict, source_path: str | None = None) -> str:
 	body = _extract_body(raw_html)
 	body = _replace_asset_refs(body, asset_map)
+	body = _replace_relative_asset_refs(body, source_path, asset_map)
 	body = _strip_canvas_attrs(body)
 	body = _remove_escaped_tracks(body)
 	body = _ensure_video_controls(body)
@@ -587,6 +727,9 @@ def _replace_asset_refs(text: str, asset_map: dict) -> str:
 			quote(path_without_prefix, safe="/"),
 			quote(path_without_prefix, safe="/()&,"),
 			unquote(path_without_prefix),
+			f"../{path}",
+			f"../{quote(path, safe='/')}",
+			f"../{quote(path, safe='/()&,')}",
 			f"../{path_without_prefix}",
 			f"../{quote(path_without_prefix, safe='/')}",
 			f"../{quote(path_without_prefix, safe='/()&,')}",
@@ -599,10 +742,70 @@ def _replace_asset_refs(text: str, asset_map: dict) -> str:
 	return text
 
 
+def _replace_relative_asset_refs(text: str, source_path: str | None, asset_map: dict) -> str:
+	if not text or not asset_map:
+		return text
+
+	attribute_pattern = re.compile(
+		r"(?P<prefix>\b(?:src|href|poster|data)\s*=\s*)(?P<quote>[\"'])(?P<value>.*?)(?P=quote)",
+		flags=re.IGNORECASE | re.DOTALL,
+	)
+
+	def replace_attribute(match):
+		value = match.group("value")
+		resolved = _resolve_asset_reference(value, source_path, asset_map)
+		return f"{match.group('prefix')}{match.group('quote')}{resolved}{match.group('quote')}"
+
+	text = attribute_pattern.sub(replace_attribute, text)
+
+	def replace_css_url(match):
+		quote_char = match.group("quote") or ""
+		value = match.group("value")
+		resolved = _resolve_asset_reference(value, source_path, asset_map)
+		return f"url({quote_char}{resolved}{quote_char})"
+
+	return re.sub(
+		r"url\(\s*(?P<quote>[\"']?)(?P<value>.*?)(?P=quote)\s*\)",
+		replace_css_url,
+		text,
+		flags=re.IGNORECASE,
+	)
+
+
+def _resolve_asset_reference(value: str, source_path: str | None, asset_map: dict) -> str:
+	decoded_value = html.unescape(value).strip()
+	if (
+		not decoded_value
+		or decoded_value.startswith(("#", "/", "data:", "mailto:", "tel:", "{{", "$WIKI_REFERENCE$"))
+		or _is_external_url(decoded_value)
+	):
+		return value
+
+	path_part, separator, fragment = decoded_value.partition("#")
+	path_part = path_part.split("?", 1)[0]
+	path_part = unquote(path_part)
+
+	candidates = []
+	if path_part.startswith(IMSCC_FILEBASE):
+		candidates.append(f"{WEB_RESOURCE_PREFIX}{path_part.removeprefix(IMSCC_FILEBASE).lstrip('/')}")
+	else:
+		candidates.append(path_part)
+		if source_path:
+			candidates.append(posixpath.normpath(posixpath.join(posixpath.dirname(source_path), path_part)))
+		candidates.append(f"{WEB_RESOURCE_PREFIX}{path_part.lstrip('../')}")
+
+	for candidate in candidates:
+		normalized = posixpath.normpath(candidate)
+		if normalized in asset_map:
+			suffix = f"#{fragment}" if separator else ""
+			return f"{asset_map[normalized]}{suffix}"
+
+	return value
+
+
 def _strip_canvas_attrs(body: str) -> str:
 	body = re.sub(r"\sdata-api-(?:endpoint|returntype)=(\"[^\"]*\"|'[^']*')", "", body)
 	body = re.sub(r"\sdata-media-(?:id|type)=(\"[^\"]*\"|'[^']*')", "", body)
-	body = re.sub(r"\sloading=(\"[^\"]*\"|'[^']*')", "", body)
 	body = re.sub(r"\sclass=(\"instructure_file_link inline_disabled\"|'instructure_file_link inline_disabled')", "", body)
 	return body
 
@@ -628,6 +831,48 @@ def _remove_canvas_query_strings(body: str) -> str:
 def _extract_html_title(body: str) -> str:
 	match = re.search(r"<title[^>]*>(.*?)</title>", body, flags=re.IGNORECASE | re.DOTALL)
 	return html.unescape(match.group(1).strip()) if match else ""
+
+
+def _rewrite_internal_lesson_links(course_name: str, resource_lessons: dict[str, str]) -> None:
+	if not resource_lessons:
+		return
+
+	resource_urls = {
+		identifier: get_lesson_url(course_name, get_lesson_index(lesson_name))
+		for identifier, lesson_name in resource_lessons.items()
+	}
+	for lesson_name in resource_lessons.values():
+		body = frappe.db.get_value("Course Lesson", lesson_name, "body") or ""
+		updated_body = body
+		for identifier, lesson_url in resource_urls.items():
+			updated_body = re.sub(
+				rf"\$WIKI_REFERENCE\$/pages/{re.escape(identifier)}(?=[\"'#?])",
+				lesson_url,
+				updated_body,
+			)
+		if updated_body != body:
+			frappe.db.set_value(
+				"Course Lesson",
+				lesson_name,
+				"body",
+				updated_body,
+				update_modified=False,
+			)
+
+
+def _is_external_url(value: str | None) -> bool:
+	return bool(value and re.match(r"^https?://", value, flags=re.IGNORECASE))
+
+
+def _is_embeddable_url(url: str) -> bool:
+	return bool(
+		re.search(
+			r"(?:youtube\.com|youtu\.be|vimeo\.com|h5p\.com|docs\.google\.com/presentation|"
+			r"mentimeter\.com|menti\.com)",
+			url,
+			flags=re.IGNORECASE,
+		)
+	)
 
 
 def _is_quiz_item(content_type: str, resource: dict) -> bool:

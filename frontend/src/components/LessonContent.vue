@@ -9,7 +9,11 @@
 			allowfullscreen
 		></iframe>
 	</div>
-	<div v-if="!hasEmbeddedBlocks" v-html="renderDocument(content)"></div>
+	<div
+		v-if="!hasEmbeddedBlocks"
+		:class="{ 'lms-html-document': hasHtmlDocument(content) }"
+		v-html="renderDocument(content)"
+	></div>
 	<template v-else>
 		<div v-for="block in content?.split('\n\n')">
 			<div v-if="block.includes('{{ YouTubeVideo')">
@@ -60,7 +64,11 @@
 				>
 				</iframe>
 			</div>
-			<div v-else v-html="renderSafe(block)"></div>
+			<div
+				v-else
+				:class="{ 'lms-html-document': hasHtmlDocument(block) }"
+				v-html="renderSafe(block)"
+			></div>
 		</div>
 	</template>
 	<div v-if="quizId">
@@ -81,13 +89,26 @@ const markdown = new MarkdownIt({
 	linkify: true,
 })
 
-const renderSafe = (block) => DOMPurify.sanitize(markdown.render(block))
+const sanitizerOptions = {
+	ADD_TAGS: ['iframe'],
+	ADD_ATTR: [
+		'allow',
+		'allowfullscreen',
+		'frameborder',
+		'loading',
+		'mozallowfullscreen',
+		'webkitallowfullscreen',
+	],
+}
+
+const renderSafe = (block) =>
+	DOMPurify.sanitize(markdown.render(block), sanitizerOptions)
+
+const hasHtmlDocument = (value) => /<\/?[a-z][\s\S]*>/i.test(value || '')
 
 const renderDocument = (value) => {
-	const source = /<\/?[a-z][\s\S]*>/i.test(value || '')
-		? value
-		: markdown.render(value || '')
-	return DOMPurify.sanitize(source)
+	const source = hasHtmlDocument(value) ? value : markdown.render(value || '')
+	return DOMPurify.sanitize(source, sanitizerOptions)
 }
 
 const props = defineProps({
@@ -120,24 +141,42 @@ const getId = (block) => {
 	return block.match(/\(["']([^"']+?)["']\)/)[1]
 }
 
-const hasH5PEmbed = computed(() =>
-	props.content?.includes('refugee-education.h5p.com')
-)
-
 const hasEmbeddedBlocks = computed(() =>
 	/{{\s*(YouTubeVideo|Quiz|Video|PDF|Audio|Embed)\s*\(/.test(
 		props.content || ''
 	)
 )
 
-const loadH5PResizer = () => {
-	if (!hasH5PEmbed.value || document.getElementById('h5p-resizer-script')) return
+const h5pResizerUrls = computed(() => {
+	const resizerUrls = new Set()
+	const iframePattern = /<iframe\b[^>]*\bsrc=(["'])(.*?)\1/gi
+	let match
 
-	const script = document.createElement('script')
-	script.id = 'h5p-resizer-script'
-	script.src = 'https://refugee-education.h5p.com/js/h5p-resizer.js'
-	script.async = true
-	document.body.appendChild(script)
+	while ((match = iframePattern.exec(props.content || ''))) {
+		try {
+			const source = new URL(match[2], window.location.origin)
+			if (source.hostname === 'h5p.com' || source.hostname.endsWith('.h5p.com')) {
+				resizerUrls.add(`${source.origin}/js/h5p-resizer.js`)
+			}
+		} catch {
+			// Invalid iframe URLs are reported by the HTML lesson checker.
+		}
+	}
+
+	return Array.from(resizerUrls)
+})
+
+const loadH5PResizer = () => {
+	h5pResizerUrls.value.forEach((url) => {
+		const scriptId = `h5p-resizer-${new URL(url).hostname.replaceAll('.', '-')}`
+		if (document.getElementById(scriptId)) return
+
+		const script = document.createElement('script')
+		script.id = scriptId
+		script.src = url
+		script.async = true
+		document.body.appendChild(script)
+	})
 }
 
 const getEmbedHeight = (block) => {
@@ -156,5 +195,5 @@ const getEmbedHeight = (block) => {
 }
 
 onMounted(loadH5PResizer)
-watch(hasH5PEmbed, loadH5PResizer)
+watch(() => props.content, loadH5PResizer)
 </script>

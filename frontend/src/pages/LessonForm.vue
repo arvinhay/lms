@@ -622,7 +622,7 @@ const isImportedHtmlLesson = (lessonData) => {
 
 const getEmbedService = (url) => {
 	if (url.includes('youtube.com') || url.includes('youtu.be')) return 'youtube'
-	if (url.includes('refugee-education.h5p.com')) return 'h5p'
+	if (/https?:\/\/(?:[^/]+\.)?h5p\.com(?:\/|$)/i.test(url)) return 'h5p'
 	if (url.includes('docs.google.com/presentation')) return 'googleSlides'
 	if (url.includes('mentimeter.com')) return 'mentimeter'
 	if (url.includes('menti.com')) return 'menti'
@@ -651,6 +651,13 @@ const getHtmlCheckIssues = () => {
 	}
 	if (/<script\b/i.test(body)) {
 		issues.push(__('Script tags should not be used inside lessons.'))
+	}
+	if (/\b(?:src|href)=(["'])http:\/\//i.test(body)) {
+		issues.push(
+			__(
+				'At least one embedded resource uses HTTP and may be blocked when the LMS uses HTTPS.'
+			)
+		)
 	}
 
 	return issues

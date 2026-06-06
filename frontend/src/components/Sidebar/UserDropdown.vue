@@ -3,7 +3,7 @@
 		<Dropdown :options="userDropdownOptions">
 			<template v-slot="{ open, close }">
 				<button
-					class="flex h-12 py-2 items-center rounded-md duration-300 ease-in-out"
+					class="flex h-12 min-w-0 items-center overflow-hidden rounded-md py-2 duration-300 ease-in-out"
 					:class="
 						isCollapsed
 							? 'px-0 w-auto'
@@ -19,32 +19,35 @@
 					/>
 					<LMSLogo v-else class="w-8 h-8 rounded flex-shrink-0" />
 					<div
-						class="flex flex-1 flex-col text-start duration-300 ease-in-out"
+						class="flex min-w-0 flex-1 flex-col text-start duration-300 ease-in-out"
 						:class="
 							isCollapsed
 								? 'opacity-0 ms-0 w-0 overflow-hidden'
 								: 'opacity-100 ms-2 w-auto'
 						"
 					>
-						<div class="text-base font-medium text-ink-gray-9 leading-none">
+						<div class="min-w-0 text-base font-medium leading-5 text-ink-gray-9">
 							<span
 								v-if="
 									branding.data?.app_name && branding.data?.app_name != 'Frappe'
 								"
+								class="block truncate"
+								:title="branding.data?.app_name"
 							>
 								{{ branding.data?.app_name }}
 							</span>
-							<span v-else> Learning </span>
+							<span v-else class="block truncate"> Learning </span>
 						</div>
 						<div
 							v-if="userResource.data"
-							class="mt-1 text-sm text-ink-gray-7 leading-none"
+							class="mt-0.5 min-w-0 truncate text-sm leading-5 text-ink-gray-7"
+							:title="convertToTitleCase(userResource.data?.full_name)"
 						>
 							{{ convertToTitleCase(userResource.data?.full_name) }}
 						</div>
 					</div>
 					<div
-						class="duration-300 ease-in-out"
+						class="shrink-0 duration-300 ease-in-out"
 						:class="
 							isCollapsed
 								? 'opacity-0 ms-0 w-0 overflow-hidden'
