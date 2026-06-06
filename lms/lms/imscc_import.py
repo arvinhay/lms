@@ -391,7 +391,7 @@ def _create_quiz_lesson(
 			"chapter": chapter_name,
 			"course": course_name,
 			"title": item.get("title") or quiz.title,
-			"body": f'{{{{ Quiz("{quiz.name}") }}}}',
+			"body": "",
 			"quiz_id": quiz.name,
 			"content": None,
 		}

@@ -20,7 +20,7 @@
 				allowfullscreen
 			></iframe>
 		</div>
-		<div v-else-if="block.includes('{{ Quiz')">
+		<div v-else-if="block.includes('{{ Quiz') && !quizId">
 			<Quiz :quiz="getId(block)" />
 		</div>
 		<div v-else-if="block.includes('{{ Video')">
