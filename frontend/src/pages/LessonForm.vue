@@ -6,13 +6,21 @@
 					class="sticky top-0 z-10 flex flex-col md:flex-row md:items-center justify-between border-b overflow-hidden bg-surface-white px-3 py-2.5 sm:px-5"
 				>
 					<Breadcrumbs class="text-ellipsis" :items="breadcrumbs" />
-					<Button
-						variant="solid"
-						@click="saveLesson({ showSuccessMessage: true })"
-						class="mt-3 md:mt-0"
-					>
-						{{ __('Save') }}
-					</Button>
+					<div class="mt-3 flex items-center gap-2 md:mt-0">
+						<Badge v-if="isDirty" theme="orange">
+							{{ __('Unsaved changes') }}
+						</Badge>
+						<Button v-if="isDirty" @click="discardAndLeave">
+							{{ __('Discard and Exit') }}
+						</Button>
+						<Button
+							variant="solid"
+							:loading="isSaving"
+							@click="saveLesson({ showSuccessMessage: true })"
+						>
+							{{ __('Save') }}
+						</Button>
+					</div>
 				</header>
 				<div class="py-5">
 					<div class="w-5/6 mx-auto space-y-5">
@@ -89,10 +97,7 @@
 							<label class="block font-medium text-ink-gray-5 mb-1">
 								{{ __('Content') }}
 							</label>
-							<div
-								v-show="htmlBodyMode"
-								class="space-y-4"
-							>
+							<div v-show="htmlBodyMode" class="space-y-4">
 								<div
 									class="flex flex-col gap-3 rounded-md border border-outline-gray-2 bg-surface-gray-1 p-3 sm:flex-row sm:items-center sm:justify-between"
 								>
@@ -141,7 +146,10 @@
 													: __('No obvious HTML issues found')
 											}}
 										</div>
-										<ul v-if="htmlCheckIssues.length" class="mt-2 list-disc ps-5">
+										<ul
+											v-if="htmlCheckIssues.length"
+											class="mt-2 list-disc ps-5"
+										>
 											<li v-for="issue in htmlCheckIssues" :key="issue">
 												{{ issue }}
 											</li>
@@ -182,6 +190,7 @@
 </template>
 <script setup>
 import {
+	Badge,
 	Breadcrumbs,
 	Button,
 	createResource,
@@ -199,7 +208,9 @@ import {
 	ref,
 	onBeforeUnmount,
 	nextTick,
+	watch,
 } from 'vue'
+import { onBeforeRouteLeave, onBeforeRouteUpdate, useRouter } from 'vue-router'
 import { sessionStore } from '../stores/session'
 import EditorJS from '@editorjs/editorjs'
 import LessonHelp from '@/components/LessonHelp.vue'
@@ -219,10 +230,12 @@ const lessonFormat = ref('native')
 const htmlEditorTab = ref('edit')
 const htmlCheckRan = ref(false)
 const htmlCheckIssues = ref([])
+const isDirty = ref(false)
+const isHydrating = ref(true)
+const isSaving = ref(false)
+const router = useRouter()
 const { capture } = useTelemetry()
 const { updateOnboardingStep } = useOnboarding('learning')
-let autoSaveInterval
-let showSuccessMessage = false
 
 const props = defineProps({
 	courseName: {
@@ -247,6 +260,7 @@ onMounted(() => {
 	editor.value = renderEditor('content')
 	instructorEditor.value = renderEditor('instructor-notes')
 	window.addEventListener('keydown', keyboardShortcut)
+	window.addEventListener('beforeunload', handleBeforeUnload)
 	enablePlyr()
 })
 
@@ -258,8 +272,9 @@ const renderEditor = (holder) => {
 		i18n: {
 			direction: document.documentElement.dir === 'rtl' ? 'rtl' : 'ltr',
 		},
-		onChange: async (api, event) => {
+		onChange: async () => {
 			enablePlyr()
+			if (!isHydrating.value) isDirty.value = true
 		},
 	})
 }
@@ -271,6 +286,13 @@ const lesson = reactive({
 	instructor_notes: '',
 	content: '',
 })
+
+watch(
+	() => [lesson.title, lesson.include_in_preview, lesson.body],
+	() => {
+		if (!isHydrating.value) isDirty.value = true
+	}
+)
 
 const lessonFormatOptions = computed(() => [
 	{
@@ -296,9 +318,13 @@ const htmlEditorTabs = computed(() => [
 
 const lessonFormatDescription = computed(() => {
 	if (lessonFormat.value === 'html') {
-		return __('HTML lessons preserve imported Canvas styling and media.')
+		return __(
+			'HTML lessons preserve imported Canvas styling and media. Changes are saved only when you press Save.'
+		)
 	}
-	return __('Native lessons use the standard Frappe lesson editor.')
+	return __(
+		'Native lessons use the standard Frappe lesson editor. Changes are saved only when you press Save.'
+	)
 })
 
 const lessonDetails = createResource({
@@ -309,7 +335,8 @@ const lessonDetails = createResource({
 		lesson: props.lessonNumber,
 	},
 	auto: true,
-	onSuccess(data) {
+	async onSuccess(data) {
+		isHydrating.value = true
 		if (data.lesson) {
 			Object.keys(data.lesson).forEach((key) => {
 				lesson[key] = data.lesson[key]
@@ -317,27 +344,27 @@ const lessonDetails = createResource({
 			lesson.include_in_preview = data?.lesson?.include_in_preview
 				? true
 				: false
-			addLessonContent(data)
-			addInstructorNotes(data)
-			enableAutoSave()
 		}
+		await Promise.all([addLessonContent(data), addInstructorNotes(data)])
+		isDirty.value = false
+		isHydrating.value = false
 	},
 })
 
-const addLessonContent = (data) => {
-	setHtmlBodyMode(isImportedHtmlLesson(data.lesson))
+const addLessonContent = async (data) => {
+	const lessonData = data.lesson || {}
+	setHtmlBodyMode(isImportedHtmlLesson(lessonData))
 	if (htmlBodyMode.value) return
 
-	editor.value.isReady.then(() => {
-		if (data.lesson.content) {
-			editor.value.render(sanitizeEditorJs(JSON.parse(data.lesson.content)))
-		} else if (data.lesson.body) {
-			let blocks = convertToJSON(data.lesson)
-			editor.value.render({
-				blocks: blocks,
-			})
-		}
-	})
+	await editor.value.isReady
+	if (lessonData.content) {
+		await editor.value.render(sanitizeEditorJs(JSON.parse(lessonData.content)))
+	} else if (lessonData.body) {
+		let blocks = convertToJSON(lessonData)
+		await editor.value.render({
+			blocks: blocks,
+		})
+	}
 }
 
 const setHtmlBodyMode = (enabled) => {
@@ -357,13 +384,14 @@ const setLessonFormat = async (format) => {
 			hasNativeContent &&
 			!window.confirm(
 				__(
-					'Switching to Preserved HTML will save this lesson as HTML instead of native Frappe blocks. Continue?'
+					'Switch to a Preserved HTML draft? Nothing changes until you press Save, and leaving without saving restores the current lesson.'
 				)
 			)
 		) {
 			return
 		}
 		setHtmlBodyMode(true)
+		isDirty.value = true
 		return
 	}
 
@@ -371,7 +399,7 @@ const setLessonFormat = async (format) => {
 		lesson.body?.trim() &&
 		!window.confirm(
 			__(
-				'Switching to Frappe Native can flatten preserved HTML styling when saved. Continue?'
+				'Switch to a Frappe Native draft? Saving may simplify preserved HTML styling. Leaving without saving restores the current HTML lesson.'
 			)
 		)
 	) {
@@ -380,7 +408,8 @@ const setLessonFormat = async (format) => {
 
 	setHtmlBodyMode(false)
 	await nextTick()
-	renderBodyInNativeEditor()
+	await renderBodyInNativeEditor()
+	isDirty.value = true
 }
 
 const nativeEditorHasContent = async () => {
@@ -405,34 +434,27 @@ const nativeEditorHasContent = async () => {
 	}
 }
 
-const renderBodyInNativeEditor = () => {
+const renderBodyInNativeEditor = async () => {
 	if (!lesson.body || !editor.value) return
-	editor.value.isReady.then(() => {
-		editor.value.render({
-			blocks: convertToJSON(lesson),
+	await editor.value.isReady
+	await editor.value.render({
+		blocks: convertToJSON(lesson),
+	})
+}
+
+const addInstructorNotes = async (data) => {
+	const lessonData = data.lesson || {}
+	await instructorEditor.value.isReady
+	if (lessonData.instructor_content) {
+		await instructorEditor.value.render(
+			sanitizeEditorJs(JSON.parse(lessonData.instructor_content))
+		)
+	} else if (lessonData.instructor_notes) {
+		let blocks = convertToJSON(lessonData)
+		await instructorEditor.value.render({
+			blocks: blocks,
 		})
-	})
-}
-
-const addInstructorNotes = (data) => {
-	instructorEditor.value.isReady.then(() => {
-		if (data.lesson.instructor_content) {
-			instructorEditor.value.render(
-				sanitizeEditorJs(JSON.parse(data.lesson.instructor_content))
-			)
-		} else if (data.lesson.instructor_notes) {
-			let blocks = convertToJSON(data.lesson)
-			instructorEditor.value.render({
-				blocks: blocks,
-			})
-		}
-	})
-}
-
-const enableAutoSave = () => {
-	autoSaveInterval = setInterval(() => {
-		saveLesson({ showSuccessMessage: false })
-	}, 10000)
+	}
 }
 
 const keyboardShortcut = (e) => {
@@ -446,9 +468,58 @@ const keyboardShortcut = (e) => {
 	}
 }
 
+const confirmNavigation = () => {
+	if (!isDirty.value) return true
+	return window.confirm(
+		__(
+			'Leave without saving? Your draft changes will be discarded and the last saved lesson will remain unchanged.'
+		)
+	)
+}
+
+const handleBeforeUnload = (event) => {
+	if (!isDirty.value) return
+	event.preventDefault()
+	event.returnValue = ''
+}
+
+const discardAndLeave = () => {
+	if (
+		!window.confirm(
+			__(
+				'Discard all unsaved changes and leave this lesson? The last saved version will remain unchanged.'
+			)
+		)
+	) {
+		return
+	}
+
+	isDirty.value = false
+	if (lessonDetails.data?.lesson) {
+		router.push({
+			name: 'Lesson',
+			params: {
+				courseName: props.courseName,
+				chapterNumber: props.chapterNumber,
+				lessonNumber: props.lessonNumber,
+			},
+		})
+		return
+	}
+
+	router.push({
+		name: 'CourseDetail',
+		params: { courseName: props.courseName },
+		hash: '#settings',
+	})
+}
+
+onBeforeRouteLeave(confirmNavigation)
+onBeforeRouteUpdate(confirmNavigation)
+
 onBeforeUnmount(() => {
-	clearInterval(autoSaveInterval)
 	window.removeEventListener('keydown', keyboardShortcut)
+	window.removeEventListener('beforeunload', handleBeforeUnload)
 })
 
 const newLessonResource = createResource({
@@ -459,7 +530,7 @@ const newLessonResource = createResource({
 				doctype: 'Course Lesson',
 				course: props.courseName,
 				chapter: lessonDetails.data?.chapter.name,
-				...lesson,
+				...values.lessonData,
 			},
 		}
 	},
@@ -470,8 +541,8 @@ const editLesson = createResource({
 	makeParams(values) {
 		return {
 			doctype: 'Course Lesson',
-			name: values.lesson,
-			fieldname: lesson,
+			name: values.lessonName,
+			fieldname: values.lessonData,
 		}
 	},
 })
@@ -559,9 +630,7 @@ const convertToJSON = (lessonData) => {
 				type: 'embed',
 				data: {
 					service:
-						embedParts.length > 1
-							? embedParts[0]
-							: getEmbedService(embedUrl),
+						embedParts.length > 1 ? embedParts[0] : getEmbedService(embedUrl),
 					embed: embedUrl,
 				},
 			})
@@ -671,40 +740,55 @@ const checkHtmlLesson = () => {
 	}
 }
 
-const saveLesson = (e) => {
-	showSuccessMessage = false
-	if (typeof e != 'undefined' && e.showSuccessMessage) {
-		showSuccessMessage = true
+const saveLesson = async ({ showSuccessMessage = false } = {}) => {
+	if (isSaving.value) return
+	isSaving.value = true
+
+	try {
+		const lessonData = await buildLessonData()
+		const validationError = validateLesson(lessonData)
+		if (validationError) {
+			toast.error(validationError)
+			return
+		}
+
+		if (lessonDetails.data?.lesson) {
+			await editCurrentLesson(lessonData, showSuccessMessage)
+		} else {
+			await createNewLesson(lessonData)
+		}
+	} catch (error) {
+		toast.error(
+			error?.messages?.[0] ||
+				error?.message ||
+				__('Unable to save the lesson. Please try again.')
+		)
+	} finally {
+		isSaving.value = false
 	}
+}
+
+const buildLessonData = async () => {
+	let instructorOutput = await instructorEditor.value.save()
+	instructorOutput = removeEmptyBlocks(instructorOutput)
+
+	const lessonData = {
+		...lesson,
+		instructor_content: JSON.stringify(instructorOutput),
+	}
+
 	if (htmlBodyMode.value) {
-		lesson.content = ''
+		lessonData.content = ''
 		htmlCheckIssues.value = getHtmlCheckIssues()
 		htmlCheckRan.value = htmlCheckIssues.value.length > 0
-		instructorEditor.value.save().then((outputData) => {
-			outputData = removeEmptyBlocks(outputData)
-			lesson.instructor_content = JSON.stringify(outputData)
-			if (lessonDetails.data?.lesson) {
-				editCurrentLesson()
-			} else {
-				createNewLesson()
-			}
-		})
-		return
+		return lessonData
 	}
-	editor.value.save().then((outputData) => {
-		outputData = removeEmptyBlocks(outputData)
-		lesson.content = JSON.stringify(outputData)
-		lesson.body = ''
-		instructorEditor.value.save().then((outputData) => {
-			outputData = removeEmptyBlocks(outputData)
-			lesson.instructor_content = JSON.stringify(outputData)
-			if (lessonDetails.data?.lesson) {
-				editCurrentLesson()
-			} else {
-				createNewLesson()
-			}
-		})
-	})
+
+	let outputData = await editor.value.save()
+	outputData = removeEmptyBlocks(outputData)
+	lessonData.content = JSON.stringify(outputData)
+	lessonData.body = ''
+	return lessonData
 }
 
 const removeEmptyBlocks = (outputData) => {
@@ -715,71 +799,55 @@ const removeEmptyBlocks = (outputData) => {
 	return outputData
 }
 
-const createNewLesson = () => {
-	newLessonResource.submit(
-		{},
-		{
-			validate() {
-				return validateLesson()
-			},
-			onSuccess(data) {
-				lessonReference.submit(
-					{ lesson: data.name },
-					{
-						onSuccess() {
-							if (user.data?.is_system_manager)
-								updateOnboardingStep('create_first_lesson')
+const createNewLesson = async (lessonData) => {
+	const data = await newLessonResource.submit({ lessonData }, { onError() {} })
+	await lessonReference.submit({ lesson: data.name }, { onError() {} })
 
-							capture('lesson_created')
-							toast.success(__('Lesson created successfully'))
-							lessonDetails.reload()
-						},
-					}
-				)
-			},
-			onError(err) {
-				toast.error(err.messages?.[0] || err)
-			},
-		}
-	)
+	if (user.data?.is_system_manager) updateOnboardingStep('create_first_lesson')
+
+	capture('lesson_created')
+	isDirty.value = false
+	toast.success(__('Lesson created successfully'))
+	await lessonDetails.reload()
 }
 
-const editCurrentLesson = () => {
-	editLesson.submit(
+const editCurrentLesson = async (lessonData, showSuccessMessage) => {
+	await editLesson.submit(
 		{
-			lesson: lessonDetails.data.lesson.name,
+			lessonName: lessonDetails.data.lesson.name,
+			lessonData,
 		},
-		{
-			validate() {
-				return validateLesson()
-			},
-			onSuccess() {
-				showSuccessMessage
-					? toast.success(__('Lesson updated successfully'))
-					: ''
-			},
-			onError(err) {
-				toast.error(err.message)
-			},
-		}
+		{ onError() {} }
 	)
+
+	isHydrating.value = true
+	Object.assign(lesson, lessonData)
+	await nextTick()
+	isDirty.value = false
+	isHydrating.value = false
+	if (showSuccessMessage) {
+		toast.success(__('Lesson updated successfully'))
+	}
 }
 
-const validateLesson = () => {
-	if (!lesson.title) {
-		return 'Title is required'
+const validateLesson = (lessonData) => {
+	if (!lessonData.title) {
+		return __('Title is required')
 	}
-	if (htmlBodyMode.value && !lesson.body?.trim()) {
-		return 'Content is required'
+	if (htmlBodyMode.value && !lessonData.body?.trim()) {
+		return __('Content is required')
 	}
-	if (htmlBodyMode.value && /<script\b/i.test(lesson.body || '')) {
-		return 'Script tags should not be used inside lessons.'
+	if (htmlBodyMode.value && /<script\b/i.test(lessonData.body || '')) {
+		return __('Script tags should not be used inside lessons.')
 	}
-	if (htmlBodyMode.value && (lesson.body || '').includes('$IMS-CC-FILEBASE$')) {
-		return 'Resolve Canvas file links before saving.'
+	if (
+		htmlBodyMode.value &&
+		(lessonData.body || '').includes('$IMS-CC-FILEBASE$')
+	) {
+		return __('Resolve Canvas file links before saving.')
 	}
-	if (!htmlBodyMode.value && !lesson.content) {
-		return 'Content is required'
+	if (!htmlBodyMode.value && !lessonData.content) {
+		return __('Content is required')
 	}
 }
 
