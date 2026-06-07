@@ -33,6 +33,9 @@
 								{{ __('Device') }}
 							</span>
 						</div>
+						<div class="mt-1 text-sm text-ink-gray-6">
+							{{ uploadLimitLabel }}
+						</div>
 					</div>
 					<div
 						v-else-if="uploading"
@@ -108,6 +111,8 @@ const total = ref(0)
 const uploading = ref(false)
 const uploadingFile = ref<any | null>(null)
 const router = useRouter()
+const MAX_COURSE_UPLOAD_SIZE_MB = 512
+const MAX_COURSE_UPLOAD_SIZE_BYTES = MAX_COURSE_UPLOAD_SIZE_MB * 1024 * 1024
 
 const openFileSelector = () => {
 	fileInput.value?.click()
@@ -127,6 +132,10 @@ const dropzoneLabel = computed(() =>
 	isIMSCC.value
 		? __('Drag and drop an IMSCC file, or upload from your')
 		: __('Drag and drop a ZIP file, or upload from your')
+)
+
+const uploadLimitLabel = computed(() =>
+	__('Maximum file size: {0} MB', [MAX_COURSE_UPLOAD_SIZE_MB])
 )
 
 const uploadProgress = computed(() => {
@@ -150,19 +159,46 @@ const validateFile = (file: File) => {
 			: __('Please upload a valid ZIP file.')
 		toast.error(message)
 		console.error(message)
+		return false
 	}
-	return extension
+
+	if (file.size > MAX_COURSE_UPLOAD_SIZE_BYTES) {
+		toast.error(
+			__('The selected file is larger than the {0} MB upload limit.', [
+				MAX_COURSE_UPLOAD_SIZE_MB,
+			])
+		)
+		return false
+	}
+
+	return true
+}
+
+const getUploadErrorMessage = (error: any) => {
+	const status = error?.status || error?.statusCode || error?.xhr?.status
+	if (status === 413) {
+		return __(
+			'The server rejected this file because it exceeds the configured upload limit.'
+		)
+	}
+
+	return error?.message || __('File upload failed. Please try again.')
 }
 
 const uploadFile = (e: Event) => {
 	const file = extractFile(e)
 	if (!file) return
 
-	let fileType = validateFile(file)
-	if (fileType !== (isIMSCC.value ? 'imscc' : 'zip')) return
+	if (!validateFile(file)) return
 
 	uploadingFile.value = file
 	const uploader = new FileUploadHandler()
+	let uploadErrorShown = false
+	const showUploadError = (error: any) => {
+		if (uploadErrorShown) return
+		uploadErrorShown = true
+		toast.error(getUploadErrorMessage(error))
+	}
 
 	uploader.on('start', () => {
 		uploading.value = true
@@ -175,7 +211,7 @@ const uploadFile = (e: Event) => {
 
 	uploader.on('error', (error: any) => {
 		uploading.value = false
-		toast.error(__('File upload failed. Please try again.'))
+		showUploadError(error)
 		console.error('File upload error:', error)
 	})
 
@@ -191,7 +227,7 @@ const uploadFile = (e: Event) => {
 		})
 		.catch((error: any) => {
 			console.error('File upload error:', error)
-			toast.error(__('File upload failed. Please try again.'))
+			showUploadError(error)
 			uploading.value = false
 			uploadingFile.value = null
 			uploaded.value = 0
