@@ -220,13 +220,88 @@ def _get_course_image(zip_file: zipfile.ZipFile, resources: dict, asset_map: dic
 def _get_modules(zip_file: zipfile.ZipFile, resources: dict) -> list[dict]:
 	modules = _get_modules_from_canvas_meta(zip_file)
 	if modules:
-		return modules
+		return _with_front_page_items(zip_file, resources, modules)
 
 	modules = _get_modules_from_manifest(zip_file, resources)
 	if modules:
+		return _with_front_page_items(zip_file, resources, modules)
+
+	return _with_front_page_items(zip_file, resources, _get_modules_from_wiki_resources(resources))
+
+
+def _with_front_page_items(
+	zip_file: zipfile.ZipFile, resources: dict, modules: list[dict]
+) -> list[dict]:
+	front_page_items = _get_unlisted_front_page_items(zip_file, resources, modules)
+	if not front_page_items:
 		return modules
 
-	return _get_modules_from_wiki_resources(resources)
+	if not modules:
+		modules = [{"title": _("Course Content"), "position": 1, "items": []}]
+
+	first_module = modules[0]
+	first_module["items"] = [
+		*front_page_items,
+		*(first_module.get("items") or []),
+	]
+	for idx, item in enumerate(first_module["items"], start=1):
+		item["position"] = idx
+
+	return modules
+
+
+def _get_unlisted_front_page_items(
+	zip_file: zipfile.ZipFile, resources: dict, modules: list[dict]
+) -> list[dict]:
+	referenced_identifiers = {
+		item.get("identifierref")
+		for module in modules
+		for item in module.get("items", [])
+		if item.get("identifierref")
+	}
+	front_page_items = []
+
+	for identifier, resource in resources.items():
+		if identifier in referenced_identifiers:
+			continue
+
+		href = resource.get("href")
+		if not href or href not in zip_file.namelist():
+			continue
+
+		if resource.get("type") != "webcontent" or not href.startswith("wiki_content/"):
+			continue
+
+		raw_html = _read_text(zip_file, href)
+		if not _is_canvas_front_page(raw_html):
+			continue
+
+		front_page_items.append(
+			{
+				"title": _extract_html_title(raw_html) or _title_from_href(href),
+				"identifierref": identifier,
+				"content_type": "WikiPage",
+				"position": len(front_page_items) + 1,
+			}
+		)
+
+	return front_page_items
+
+
+def _is_canvas_front_page(raw_html: str) -> bool:
+	for meta_tag in re.findall(r"<meta\b[^>]*>", raw_html, flags=re.IGNORECASE):
+		attributes = {
+			name.lower(): value.strip().lower()
+			for name, _quote, value in re.findall(
+				r"([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*=\s*(['\"])(.*?)\2",
+				meta_tag,
+				flags=re.IGNORECASE | re.DOTALL,
+			)
+		}
+		if attributes.get("name") == "front_page" and attributes.get("content") in {"true", "1"}:
+			return True
+
+	return False
 
 
 def _get_modules_from_canvas_meta(zip_file: zipfile.ZipFile) -> list[dict]:

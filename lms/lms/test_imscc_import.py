@@ -5,6 +5,7 @@ from unittest import TestCase
 from lms.lms.imscc_import import (
 	_build_external_resource_body,
 	_clean_html,
+	_get_modules,
 	_get_modules_from_manifest,
 )
 
@@ -78,3 +79,74 @@ class TestIMSCCImport(TestCase):
 		self.assertIn("<iframe", body)
 		self.assertIn("https://example.h5p.com/content/123/embed", body)
 		self.assertIn("allowfullscreen", body)
+
+	def test_canvas_front_page_is_prepended_when_module_meta_omits_it(self):
+		manifest = """
+			<manifest xmlns="http://www.imsglobal.org/xsd/imscp_v1p1">
+				<resources>
+					<resource identifier="front-page" type="webcontent" href="wiki_content/home.html">
+						<file href="wiki_content/home.html" />
+					</resource>
+					<resource identifier="module-page" type="webcontent" href="wiki_content/lesson.html">
+						<file href="wiki_content/lesson.html" />
+					</resource>
+				</resources>
+			</manifest>
+		"""
+		module_meta = """
+			<modules>
+				<module>
+					<title>Module 1</title>
+					<position>1</position>
+					<items>
+						<item>
+							<title>Lesson 1</title>
+							<identifierref>module-page</identifierref>
+							<content_type>WikiPage</content_type>
+							<position>1</position>
+						</item>
+					</items>
+				</module>
+			</modules>
+		"""
+		front_page = """
+			<html>
+				<head>
+						<title>Course Front Page</title>
+						<meta content="true" name="front_page">
+				</head>
+				<body>
+					<video><source src="$IMS-CC-FILEBASE$/intro.mp4"></video>
+				</body>
+			</html>
+		"""
+		buffer = BytesIO()
+		with zipfile.ZipFile(buffer, "w") as archive:
+			archive.writestr("imsmanifest.xml", manifest)
+			archive.writestr("course_settings/module_meta.xml", module_meta)
+			archive.writestr("wiki_content/home.html", front_page)
+			archive.writestr("wiki_content/lesson.html", "<html><body>Lesson</body></html>")
+
+		buffer.seek(0)
+		with zipfile.ZipFile(buffer) as archive:
+			modules = _get_modules(
+				archive,
+				{
+					"front-page": {
+						"href": "wiki_content/home.html",
+						"type": "webcontent",
+						"files": ["wiki_content/home.html"],
+						"dependencies": [],
+					},
+					"module-page": {
+						"href": "wiki_content/lesson.html",
+						"type": "webcontent",
+						"files": ["wiki_content/lesson.html"],
+						"dependencies": [],
+					},
+				},
+			)
+
+		self.assertEqual(modules[0]["items"][0]["identifierref"], "front-page")
+		self.assertEqual(modules[0]["items"][0]["title"], "Course Front Page")
+		self.assertEqual(modules[0]["items"][1]["identifierref"], "module-page")

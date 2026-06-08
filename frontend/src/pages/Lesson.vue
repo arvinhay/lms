@@ -273,6 +273,28 @@
 							/>
 						</div>
 					</div>
+					<div v-if="!zenModeEnabled" class="rea-lesson-bottom-actions px-5">
+						<button
+							v-if="lesson.data.next"
+							type="button"
+							class="rea-lesson-next-button"
+							@click="switchLesson('next')"
+						>
+							<span>{{ __('Next') }}</span>
+							<ChevronRight class="size-5 stroke-2" />
+						</button>
+						<router-link
+							v-else
+							class="rea-lesson-next-button rea-lesson-next-button-secondary"
+							:to="{
+								name: 'CourseDetail',
+								params: { courseName: courseName },
+							}"
+						>
+							<span>{{ __('Back to Course') }}</span>
+							<ChevronRight class="size-5 stroke-2" />
+						</router-link>
+					</div>
 					<div
 						v-if="lesson.data && (allowDiscussions || tabs.length > 1)"
 						class="mt-10 pb-20 pt-5 border-t px-5"
@@ -1214,5 +1236,58 @@ usePageMeta(() => {
 :root {
 	--plyr-range-fill-background: white;
 	--plyr-video-control-background-hover: transparent;
+}
+
+.rea-lesson-bottom-actions {
+	display: flex;
+	justify-content: flex-end;
+	margin-top: 2rem;
+}
+
+.rea-lesson-next-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.5rem;
+	min-height: 3rem;
+	min-width: 10rem;
+	max-width: 100%;
+	padding: 0.75rem 1.25rem;
+	border-radius: 8px;
+	background: var(--rea-secondary, #f07a03);
+	color: #ffffff !important;
+	font-weight: 700;
+	line-height: 1.2;
+	text-decoration: none !important;
+	box-shadow: 0 10px 22px rgba(15, 23, 42, 0.14);
+	transition:
+		background-color 0.15s ease,
+		transform 0.15s ease,
+		box-shadow 0.15s ease;
+}
+
+.rea-lesson-next-button:hover {
+	background: var(--rea-primary, #167b8d);
+	color: #ffffff !important;
+	transform: translateY(-1px);
+	box-shadow: 0 12px 26px rgba(15, 23, 42, 0.18);
+}
+
+.rea-lesson-next-button-secondary {
+	background: var(--rea-primary, #167b8d);
+}
+
+.rea-lesson-next-button-secondary:hover {
+	background: var(--rea-primary-hover, #116574);
+}
+
+@media (max-width: 640px) {
+	.rea-lesson-bottom-actions {
+		justify-content: stretch;
+	}
+
+	.rea-lesson-next-button {
+		width: 100%;
+	}
 }
 </style>
