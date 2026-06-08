@@ -80,7 +80,12 @@
 		</template>
 		<template #actions>
 			<div class="flex justify-end">
-				<Button variant="solid" @click="importCourse">
+				<Button
+					variant="solid"
+					:loading="importing"
+					:disabled="importing || !uploadedCourseFile"
+					@click="importCourse"
+				>
 					{{ __('Import') }}
 				</Button>
 			</div>
@@ -233,8 +238,15 @@ const uploadFile = (e: Event) => {
 		})
 }
 
+const importing = ref(false)
+
 const importCourse = () => {
-	if (!uploadedCourseFile.value) return
+	// Guard against double-submission. Without this, a second click fires a
+	// concurrent import that collides with the first on the LMS Course record
+	// ("Record has changed since last read", error 1020) and surfaces a
+	// spurious "API error" even though the first request imported fine.
+	if (!uploadedCourseFile.value || importing.value) return
+	importing.value = true
 	const method = isIMSCC.value
 		? 'lms.lms.api.import_course_from_imscc'
 		: 'lms.lms.api.import_course_from_zip'
@@ -255,6 +267,9 @@ const importCourse = () => {
 		.catch((error: any) => {
 			toast.error('Error importing course: ' + error.message)
 			console.error('Error importing course:', error)
+		})
+		.finally(() => {
+			importing.value = false
 		})
 }
 
