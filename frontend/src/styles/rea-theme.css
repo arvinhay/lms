@@ -308,11 +308,18 @@
 	color: var(--rea-primary) !important;
 }
 
-:root[data-lms-theme='rea'] .rea-quiz-page-pill.bg-surface-blue-3,
-:root[data-lms-theme='rea'] .rea-quiz-page-pill.bg-surface-gray-4 {
+/* Answered (not current) questions: solid teal */
+:root[data-lms-theme='rea'] .rea-quiz-page-pill.bg-surface-blue-3 {
 	background-color: var(--rea-primary) !important;
 	border-color: var(--rea-primary) !important;
 	color: #ffffff !important;
+}
+
+/* Current (active) question: white fill with teal outline so it reads as "you are here" */
+:root[data-lms-theme='rea'] .rea-quiz-page-pill.bg-surface-gray-4 {
+	background-color: #ffffff !important;
+	border-color: var(--rea-primary) !important;
+	color: var(--rea-primary) !important;
 }
 
 :root[data-lms-theme='rea'] .rea-quiz-page-pill.bg-surface-gray-3 {
