@@ -1,5 +1,5 @@
 <template>
-	<div v-if="youtube">
+	<div v-if="youtube" class="lms-embed lms-embed-video">
 		<iframe
 			class="youtube-video"
 			:src="getYouTubeVideoSource(youtube.split('/').pop())"
@@ -16,7 +16,10 @@
 	></div>
 	<template v-else>
 		<div v-for="block in content?.split('\n\n')">
-			<div v-if="block.includes('{{ YouTubeVideo')">
+			<div
+				v-if="block.includes('{{ YouTubeVideo')"
+				class="lms-embed lms-embed-video"
+			>
 				<iframe
 					class="youtube-video"
 					:src="getYouTubeVideoSource(block)"
@@ -29,7 +32,7 @@
 			<div v-else-if="block.includes('{{ Quiz') && !quizId">
 				<Quiz :quiz="getId(block)" />
 			</div>
-			<div v-else-if="block.includes('{{ Video')">
+			<div v-else-if="block.includes('{{ Video')" class="lms-embed lms-embed-video">
 				<video
 					controls
 					width="100%"
@@ -39,7 +42,7 @@
 					<source :src="getId(block)" type="video/mp4" />
 				</video>
 			</div>
-			<div v-else-if="block.includes('{{ PDF')">
+			<div v-else-if="block.includes('{{ PDF')" class="lms-embed">
 				<iframe
 					:src="getPDFSource(block)"
 					width="100%"
@@ -48,12 +51,12 @@
 					allowfullscreen
 				></iframe>
 			</div>
-			<div v-else-if="block.includes('{{ Audio')">
+			<div v-else-if="block.includes('{{ Audio')" class="lms-embed">
 				<audio width="100%" controls controlsList="nodownload">
 					<source :src="getId(block)" type="audio/mp3" />
 				</audio>
 			</div>
-			<div v-else-if="block.includes('{{ Embed')">
+			<div v-else-if="block.includes('{{ Embed')" class="lms-embed">
 				<iframe
 					width="100%"
 					:height="getEmbedHeight(block)"

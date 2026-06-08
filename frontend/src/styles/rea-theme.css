@@ -27,7 +27,9 @@
 .lms-html-document embed,
 .lms-html-document object {
 	display: block;
-	max-width: 100%;
+	max-width: min(100%, 1000px);
+	margin-left: auto;
+	margin-right: auto;
 }
 
 .lms-html-document img,
@@ -37,6 +39,32 @@
 
 .lms-html-document iframe {
 	width: 100%;
+}
+
+/* Embedded lesson media (videos, H5P, slides, PDFs, audio):
+   keep them readable instead of stretching to the full page width.
+   Cap at 1000px on desktop, centre, and stay fluid on tablet/mobile. */
+.lms-embed {
+	width: 100%;
+	max-width: 1000px;
+	margin: 1rem auto;
+}
+
+.lms-embed iframe,
+.lms-embed video,
+.lms-embed audio {
+	display: block;
+	width: 100%;
+	max-width: 100%;
+	border-radius: 6px;
+}
+
+/* Video-style embeds (YouTube / uploaded video) scale by aspect ratio so
+   they look right on tablet and desktop rather than using a fixed height. */
+.lms-embed-video iframe,
+.lms-embed-video video {
+	height: auto;
+	aspect-ratio: 16 / 9;
 }
 
 :root[data-lms-theme='dark'] .lms-html-document {

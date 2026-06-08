@@ -11,7 +11,11 @@
 					v-if="!uploadedCourseFile"
 					@dragover.prevent
 					@drop.prevent="(e) => uploadFile(e)"
-					class="h-[120px] flex flex-col items-center justify-center bg-surface-gray-1 border border-dashed border-outline-gray-3 rounded-md"
+					@click="!uploading && openFileSelector()"
+					:class="[
+						'h-[120px] flex flex-col items-center justify-center bg-surface-gray-1 border border-dashed border-outline-gray-3 rounded-md',
+						uploading ? '' : 'cursor-pointer',
+					]"
 				>
 					<div v-if="!uploading" class="w-4/5 text-center">
 						<UploadCloud
@@ -26,12 +30,6 @@
 						/>
 						<div class="leading-5 text-ink-gray-9">
 							{{ dropzoneLabel }}
-							<span
-								@click="openFileSelector"
-								class="cursor-pointer font-semibold hover:underline"
-							>
-								{{ __('Device') }}
-							</span>
 						</div>
 						<div class="mt-1 text-sm text-ink-gray-6">
 							{{ uploadLimitLabel }}
@@ -130,8 +128,8 @@ const dialogTitle = computed(() =>
 
 const dropzoneLabel = computed(() =>
 	isIMSCC.value
-		? __('Drag and drop an IMSCC file, or upload from your')
-		: __('Drag and drop a ZIP file, or upload from your')
+		? __('Drag and drop an IMSCC file, or click to browse')
+		: __('Drag and drop a ZIP file, or click to browse')
 )
 
 const uploadLimitLabel = computed(() =>

@@ -10,7 +10,10 @@ from lms.lms.imscc_import import (
 
 
 class TestIMSCCImport(TestCase):
-	def test_clean_html_preserves_embeds_and_resolves_relative_assets(self):
+	def test_clean_html_converts_embeds_to_macros_and_resolves_relative_assets(self):
+		# Raw <iframe> tags are stripped by Frappe's HTML sanitiser when the
+		# lesson is saved, so embeds (H5P, Google Slides, ...) must be stored as
+		# Embed macros to survive. Images are kept as <img>.
 		raw_html = """
 			<html><body>
 				<img src="../web_resources/Uploaded%20Media/Test.png"
@@ -26,9 +29,24 @@ class TestIMSCCImport(TestCase):
 		)
 
 		self.assertIn('src="/files/Test.png"', body)
-		self.assertIn('src="https://tenant.h5p.com/content/123/embed"', body)
-		self.assertIn('loading="lazy"', body)
+		self.assertIn('{{ Embed("https://tenant.h5p.com/content/123/embed") }}', body)
+		self.assertNotIn("<iframe", body)
 		self.assertNotIn("data-api-endpoint", body)
+
+	def test_clean_html_unescapes_query_strings_in_embed_macros(self):
+		raw_html = (
+			'<html><body><iframe src="https://docs.google.com/presentation/d/e/'
+			'ABC/embed?start=false&amp;loop=false&amp;delayms=3000"></iframe></body></html>'
+		)
+
+		body = _clean_html(raw_html, {}, "wiki_content/page.html")
+
+		self.assertIn(
+			'{{ Embed("https://docs.google.com/presentation/d/e/ABC/embed'
+			'?start=false&loop=false&delayms=3000") }}',
+			body,
+		)
+		self.assertNotIn("&amp;", body)
 
 	def test_manifest_hierarchy_becomes_chapters_with_ordered_lessons(self):
 		manifest = """
@@ -69,12 +87,61 @@ class TestIMSCCImport(TestCase):
 			["page-one", "page-two"],
 		)
 
+	def test_manifest_learning_modules_wrapper_is_unwrapped(self):
+		# Canvas nests the real modules inside a single LearningModules item.
+		# Each module must become its own chapter, not collapse into one.
+		manifest = """
+			<manifest xmlns="http://www.imsglobal.org/xsd/imscp_v1p1">
+				<organizations>
+					<organization structure="rooted-hierarchy">
+						<item identifier="LearningModules">
+							<item identifier="m1">
+								<title>Module One</title>
+								<item identifierref="page-one"><title>First page</title></item>
+								<item identifierref="page-two"><title>Second page</title></item>
+							</item>
+							<item identifier="m2">
+								<title>Module Two</title>
+								<item identifierref="page-three"><title>Third page</title></item>
+							</item>
+						</item>
+					</organization>
+				</organizations>
+			</manifest>
+		"""
+		buffer = BytesIO()
+		with zipfile.ZipFile(buffer, "w") as archive:
+			archive.writestr("imsmanifest.xml", manifest)
+
+		buffer.seek(0)
+		with zipfile.ZipFile(buffer) as archive:
+			modules = _get_modules_from_manifest(
+				archive,
+				{
+					"page-one": {"type": "webcontent"},
+					"page-two": {"type": "webcontent"},
+					"page-three": {"type": "webcontent"},
+				},
+			)
+
+		self.assertEqual([module["title"] for module in modules], ["Module One", "Module Two"])
+		self.assertEqual(
+			[item["identifierref"] for item in modules[0]["items"]],
+			["page-one", "page-two"],
+		)
+		self.assertEqual(
+			[item["identifierref"] for item in modules[1]["items"]],
+			["page-three"],
+		)
+
 	def test_external_learning_tools_keep_their_embed(self):
 		body = _build_external_resource_body(
 			"https://example.h5p.com/content/123/embed",
 			"Interactive activity",
 		)
 
-		self.assertIn("<iframe", body)
-		self.assertIn("https://example.h5p.com/content/123/embed", body)
-		self.assertIn("allowfullscreen", body)
+		# Stored as a macro (survives sanitisation), not a raw iframe.
+		self.assertEqual(
+			body, '{{ Embed("https://example.h5p.com/content/123/embed") }}'
+		)
+		self.assertNotIn("<iframe", body)

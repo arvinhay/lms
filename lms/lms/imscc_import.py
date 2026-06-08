@@ -262,6 +262,33 @@ def _get_modules_from_canvas_meta(zip_file: zipfile.ZipFile) -> list[dict]:
 	return sorted(modules, key=lambda row: row["position"])
 
 
+def _module_level_items(organization) -> list:
+	"""Return the items that represent course modules.
+
+	Canvas wraps every module inside a single structural item (typically
+	``LearningModules``) that has no resource of its own:
+
+	    organization > LearningModules > Module 1 > page, page, ...
+
+	Treating that wrapper as the only module collapses the whole course into a
+	single chapter, so descend through it when its children are themselves
+	containers (the real modules). Exports that already list modules directly
+	under the organization are left untouched.
+	"""
+	top_items = _children(organization, "item")
+	if len(top_items) == 1:
+		wrapper = top_items[0]
+		nested = _children(wrapper, "item")
+		if (
+			not wrapper.attrib.get("identifierref")
+			and nested
+			and any(_children(child, "item") for child in nested)
+		):
+			return nested
+
+	return top_items
+
+
 def _get_modules_from_manifest(zip_file: zipfile.ZipFile, resources: dict) -> list[dict]:
 	root = _read_xml(zip_file, "imsmanifest.xml")
 	organization = next(iter(_descendants(root, "organization")), None)
@@ -270,7 +297,7 @@ def _get_modules_from_manifest(zip_file: zipfile.ZipFile, resources: dict) -> li
 
 	modules = []
 	loose_items = []
-	for top_level_item in _children(organization, "item"):
+	for top_level_item in _module_level_items(organization):
 		child_items = _manifest_leaf_items(top_level_item, resources)
 		if child_items:
 			modules.append(
@@ -479,16 +506,11 @@ def _get_resource_asset_url(resource: dict, resources: dict, asset_map: dict) ->
 
 
 def _build_external_resource_body(url: str, title: str | None = None) -> str:
+	if _is_embeddable_url(url):
+		return _embed_macro(url)
+
 	safe_url = html.escape(url, quote=True)
 	safe_title = html.escape(title or _("Open external content"), quote=True)
-	if _is_embeddable_url(url):
-		return (
-			f'<iframe src="{safe_url}" title="{safe_title}" width="100%" height="720" '
-			'loading="lazy" allowfullscreen '
-			'allow="autoplay *; geolocation *; microphone *; camera *; midi *; encrypted-media *">'
-			"</iframe>"
-		)
-
 	return (
 		f'<p><a href="{safe_url}" target="_blank" rel="noopener noreferrer">'
 		f"{safe_title}</a></p>"
@@ -507,7 +529,7 @@ def _build_attachment_body(file_url: str, title: str | None = None) -> str:
 	if extension in {".mp3", ".wav", ".m4a", ".aac"}:
 		return f'<audio controls width="100%"><source src="{safe_url}"></audio>'
 	if extension == ".pdf":
-		return f'<iframe src="{safe_url}" title="{safe_title}" width="100%" height="720"></iframe>'
+		return _pdf_macro(file_url)
 
 	return (
 		f'<p><a href="{safe_url}" target="_blank" rel="noopener noreferrer" download>'
@@ -695,10 +717,45 @@ def _clean_html(raw_html: str, asset_map: dict, source_path: str | None = None) 
 	body = _replace_relative_asset_refs(body, source_path, asset_map)
 	body = _strip_canvas_attrs(body)
 	body = _remove_escaped_tracks(body)
+	body = _convert_iframes_to_macros(body)
 	body = _ensure_video_controls(body)
 	body = _remove_canvas_query_strings(body)
 	body = re.sub(r"\n{3,}", "\n\n", body)
 	return body.strip()
+
+
+_IFRAME_RE = re.compile(
+	r"<iframe\b[^>]*?\bsrc\s*=\s*(?P<quote>[\"'])(?P<src>.*?)(?P=quote)[^>]*?>"
+	r"(?:.*?</iframe\s*>)?",
+	flags=re.IGNORECASE | re.DOTALL,
+)
+
+
+def _embed_macro(url: str) -> str:
+	"""Render an embeddable URL as an LMS ``Embed`` macro.
+
+	Raw <iframe> tags are removed by Frappe's HTML sanitiser when a lesson is
+	saved, which silently drops H5P, Google Slides and similar embeds. Storing
+	the URL as a macro keeps it as plain text so it survives the save and is
+	rendered back into an iframe by the lesson renderer.
+	"""
+	url = html.unescape(url or "").strip()
+	return f'{{{{ Embed("{url}") }}}}'
+
+
+def _pdf_macro(url: str) -> str:
+	url = html.unescape(url or "").strip()
+	return f'{{{{ PDF("{url}") }}}}'
+
+
+def _convert_iframes_to_macros(body: str) -> str:
+	def replace(match):
+		src = html.unescape(match.group("src")).strip()
+		if not src:
+			return ""
+		return f"\n\n{_embed_macro(src)}\n\n"
+
+	return _IFRAME_RE.sub(replace, body)
 
 
 def _extract_body(raw_html: str) -> str:
