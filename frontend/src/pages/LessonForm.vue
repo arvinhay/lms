@@ -5,16 +5,179 @@
 				<header
 					class="sticky top-0 z-10 flex flex-col md:flex-row md:items-center justify-between border-b overflow-hidden bg-surface-white px-3 py-2.5 sm:px-5"
 				>
-					<label class="block font-medium text-ink-gray-5 mb-1">
-						{{ __('Instructor Notes') }}
-					</label>
-					<ChevronRight
-						class="stroke-2 h-5 w-5 text-ink-gray-5 transform duration-200"
-						:class="{
-							'rotate-90': openInstructorEditor,
-							'rtl:rotate-180': !openInstructorEditor,
-						}"
-					/>
+					<Breadcrumbs class="text-ellipsis" :items="breadcrumbs" />
+					<div class="mt-3 flex items-center gap-2 md:mt-0">
+						<Badge v-if="isDirty" theme="orange">
+							{{ __('Unsaved changes') }}
+						</Badge>
+						<Button v-if="isDirty" @click="discardAndLeave">
+							{{ __('Discard and Exit') }}
+						</Button>
+						<Button
+							variant="solid"
+							:loading="isSaving"
+							@click="saveLesson({ showSuccessMessage: true })"
+						>
+							{{ __('Save') }}
+						</Button>
+					</div>
+				</header>
+				<div class="py-5">
+					<div class="w-5/6 mx-auto space-y-5">
+						<div class="grid grid-cols-2 gap-5">
+							<FormControl
+								v-model="lesson.title"
+								:label="__('Title')"
+								:required="true"
+								autocomplete="off"
+							/>
+							<Switch
+								v-model="lesson.include_in_preview"
+								:label="__('Include in Preview')"
+								:description="
+									__(
+										'If enabled, the lesson will also be accessible to users who are not enrolled in the course.'
+									)
+								"
+							/>
+						</div>
+						<div
+							class="rounded-md border border-outline-gray-2 bg-surface-white p-4"
+						>
+							<div
+								class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+							>
+								<div>
+									<div class="text-sm font-medium text-ink-gray-8">
+										{{ __('Lesson Format') }}
+									</div>
+									<div class="mt-1 text-sm text-ink-gray-5">
+										{{ lessonFormatDescription }}
+									</div>
+								</div>
+								<TabButtons
+									:buttons="lessonFormatOptions"
+									:model-value="lessonFormat"
+									@update:modelValue="setLessonFormat"
+									class="w-fit"
+								/>
+							</div>
+						</div>
+					</div>
+					<div class="border-t mt-4">
+						<div class="w-5/6 mx-auto pt-4">
+							<div
+								class="flex justify-between cursor-pointer"
+								@click="
+									() => {
+										openInstructorEditor = !openInstructorEditor
+									}
+								"
+							>
+								<label class="block font-medium text-ink-gray-5 mb-1">
+									{{ __('Instructor Notes') }}
+								</label>
+								<ChevronRight
+									class="stroke-2 h-5 w-5 text-ink-gray-5 transform duration-200"
+									:class="{
+										'rotate-90': openInstructorEditor,
+										'rtl:rotate-180': !openInstructorEditor,
+									}"
+								/>
+							</div>
+							<div
+								v-show="openInstructorEditor"
+								id="instructor-notes"
+								class="ProseMirror prose prose-table:table-fixed prose-td:p-2 prose-th:p-2 prose-td:border prose-th:border prose-td:border-outline-gray-2 prose-th:border-outline-gray-2 prose-td:relative prose-th:relative prose-th:bg-surface-gray-2 prose-sm max-w-none !whitespace-normal py-3"
+							></div>
+						</div>
+					</div>
+					<div class="border-t mt-4">
+						<div class="w-5/6 mx-auto pt-4">
+							<label class="block font-medium text-ink-gray-5 mb-1">
+								{{ __('Content') }}
+							</label>
+							<div v-show="htmlBodyMode" class="space-y-4">
+								<div
+									class="flex flex-col gap-3 rounded-md border border-outline-gray-2 bg-surface-gray-1 p-3 sm:flex-row sm:items-center sm:justify-between"
+								>
+									<div class="text-sm text-ink-gray-6">
+										{{
+											__(
+												'Preserved HTML keeps imported Canvas layout and media intact. Edit HTML only.'
+											)
+										}}
+									</div>
+									<TabButtons
+										:buttons="htmlEditorTabs"
+										v-model="htmlEditorTab"
+										class="w-fit"
+									/>
+								</div>
+								<div v-show="htmlEditorTab === 'edit'" class="space-y-3">
+									<Code
+										v-model="lesson.body"
+										language="html"
+										height="430px"
+										max-height="620px"
+										:show-border="true"
+									/>
+									<div class="flex items-center justify-between gap-3">
+										<Button @click="checkHtmlLesson">
+											{{ __('Check Lesson') }}
+										</Button>
+										<div class="text-sm text-ink-gray-5">
+											{{ __('Use Preview before saving major edits.') }}
+										</div>
+									</div>
+									<div
+										v-if="htmlCheckRan"
+										class="rounded-md border p-3 text-sm"
+										:class="
+											htmlCheckIssues.length
+												? 'border-outline-gray-3 bg-surface-gray-1 text-ink-gray-8'
+												: 'border-outline-gray-2 bg-surface-white text-ink-gray-8'
+										"
+									>
+										<div class="font-medium">
+											{{
+												htmlCheckIssues.length
+													? __('Review these HTML items')
+													: __('No obvious HTML issues found')
+											}}
+										</div>
+										<ul
+											v-if="htmlCheckIssues.length"
+											class="mt-2 list-disc ps-5"
+										>
+											<li v-for="issue in htmlCheckIssues" :key="issue">
+												{{ issue }}
+											</li>
+										</ul>
+									</div>
+								</div>
+								<div v-show="htmlEditorTab === 'preview'">
+									<div class="mb-2 text-sm font-medium text-ink-gray-5">
+										{{ __('Preview') }}
+									</div>
+									<div
+										class="prose prose-sm max-w-none rounded-md border border-outline-gray-2 bg-surface-white p-4"
+									>
+										<LessonContent
+											:content="lesson.body || ''"
+											:youtube="lesson.youtube"
+											:quiz-id="lesson.quiz_id"
+										/>
+									</div>
+								</div>
+							</div>
+							<div
+								v-show="!htmlBodyMode"
+								id="content"
+								class="ProseMirror prose prose-table:table-fixed prose-td:p-2 prose-th:p-2 prose-td:border prose-th:border prose-td:border-outline-gray-2 prose-th:border-outline-gray-2 prose-td:relative prose-th:relative prose-th:bg-surface-gray-2 prose-sm max-w-none !whitespace-normal py-3"
+							></div>
+						</div>
+					</div>
 				</div>
 			</div>
 			<div class="">
@@ -26,9 +189,33 @@
 	</div>
 </template>
 <script setup>
-import { createResource, toast } from 'frappe-ui'
-import { reactive, onMounted, inject, ref, onBeforeUnmount } from 'vue'
+import {
+	Badge,
+	Breadcrumbs,
+	Button,
+	createResource,
+	FormControl,
+	Switch,
+	TabButtons,
+	usePageMeta,
+	toast,
+} from 'frappe-ui'
+import {
+	computed,
+	reactive,
+	onMounted,
+	inject,
+	ref,
+	onBeforeUnmount,
+	nextTick,
+	watch,
+} from 'vue'
+import { onBeforeRouteLeave, onBeforeRouteUpdate, useRouter } from 'vue-router'
+import { sessionStore } from '../stores/session'
 import EditorJS from '@editorjs/editorjs'
+import LessonHelp from '@/components/LessonHelp.vue'
+import LessonContent from '@/components/LessonContent.vue'
+import Code from '@/components/Controls/Code.vue'
 import { ChevronRight } from 'lucide-vue-next'
 import { getEditorTools, enablePlyr, sanitizeEditorJs } from '@/utils'
 import { useOnboarding, useTelemetry } from 'frappe-ui/frappe'
@@ -38,10 +225,17 @@ const editor = ref(null)
 const instructorEditor = ref(null)
 const user = inject('$user')
 const openInstructorEditor = ref(false)
+const htmlBodyMode = ref(false)
+const lessonFormat = ref('native')
+const htmlEditorTab = ref('edit')
+const htmlCheckRan = ref(false)
+const htmlCheckIssues = ref([])
+const isDirty = ref(false)
+const isHydrating = ref(true)
+const isSaving = ref(false)
+const router = useRouter()
 const { capture } = useTelemetry()
 const { updateOnboardingStep } = useOnboarding('learning')
-let autoSaveInterval
-let showSuccessMessage = false
 
 const props = defineProps({
 	courseName: {
@@ -66,6 +260,7 @@ onMounted(() => {
 	editor.value = renderEditor('content')
 	instructorEditor.value = renderEditor('instructor-notes')
 	window.addEventListener('keydown', keyboardShortcut)
+	window.addEventListener('beforeunload', handleBeforeUnload)
 	enablePlyr()
 })
 
@@ -77,9 +272,9 @@ const renderEditor = (holder) => {
 		i18n: {
 			direction: document.documentElement.dir === 'rtl' ? 'rtl' : 'ltr',
 		},
-		onChange: async (api, event) => {
+		onChange: async () => {
 			enablePlyr()
-			markDirty()
+			if (!isHydrating.value) isDirty.value = true
 		},
 	})
 }
@@ -92,6 +287,46 @@ const lesson = reactive({
 	content: '',
 })
 
+watch(
+	() => [lesson.title, lesson.include_in_preview, lesson.body],
+	() => {
+		if (!isHydrating.value) isDirty.value = true
+	}
+)
+
+const lessonFormatOptions = computed(() => [
+	{
+		label: __('Frappe Native'),
+		value: 'native',
+	},
+	{
+		label: __('Preserved HTML'),
+		value: 'html',
+	},
+])
+
+const htmlEditorTabs = computed(() => [
+	{
+		label: __('Edit HTML'),
+		value: 'edit',
+	},
+	{
+		label: __('Preview'),
+		value: 'preview',
+	},
+])
+
+const lessonFormatDescription = computed(() => {
+	if (lessonFormat.value === 'html') {
+		return __(
+			'HTML lessons preserve imported Canvas styling and media. Changes are saved only when you press Save.'
+		)
+	}
+	return __(
+		'Native lessons use the standard Frappe lesson editor. Changes are saved only when you press Save.'
+	)
+})
+
 const lessonDetails = createResource({
 	url: 'lms.lms.utils.get_lesson_creation_details',
 	params: {
@@ -100,7 +335,8 @@ const lessonDetails = createResource({
 		lesson: props.lessonNumber,
 	},
 	auto: true,
-	onSuccess(data) {
+	async onSuccess(data) {
+		isHydrating.value = true
 		if (data.lesson) {
 			Object.keys(data.lesson).forEach((key) => {
 				lesson[key] = data.lesson[key]
@@ -108,47 +344,117 @@ const lessonDetails = createResource({
 			lesson.include_in_preview = data?.lesson?.include_in_preview
 				? true
 				: false
-			addLessonContent(data)
-			addInstructorNotes(data)
-			enableAutoSave()
-			// Initial population isn't user input.
-			isDirty.value = false
 		}
+		await Promise.all([addLessonContent(data), addInstructorNotes(data)])
+		isDirty.value = false
+		isHydrating.value = false
 	},
 })
 
-const addLessonContent = (data) => {
-	editor.value.isReady.then(() => {
-		if (data.lesson.content) {
-			editor.value.render(sanitizeEditorJs(JSON.parse(data.lesson.content)))
-		} else if (data.lesson.body) {
-			let blocks = convertToJSON(data.lesson)
-			editor.value.render({
-				blocks: blocks,
-			})
-		}
-	})
+const addLessonContent = async (data) => {
+	const lessonData = data.lesson || {}
+	setHtmlBodyMode(isImportedHtmlLesson(lessonData))
+	if (htmlBodyMode.value) return
+
+	await editor.value.isReady
+	if (lessonData.content) {
+		await editor.value.render(sanitizeEditorJs(JSON.parse(lessonData.content)))
+	} else if (lessonData.body) {
+		let blocks = convertToJSON(lessonData)
+		await editor.value.render({
+			blocks: blocks,
+		})
+	}
 }
 
-const addInstructorNotes = (data) => {
-	instructorEditor.value.isReady.then(() => {
-		if (data.lesson.instructor_content) {
-			instructorEditor.value.render(
-				sanitizeEditorJs(JSON.parse(data.lesson.instructor_content))
+const setHtmlBodyMode = (enabled) => {
+	htmlBodyMode.value = enabled
+	lessonFormat.value = enabled ? 'html' : 'native'
+	htmlEditorTab.value = enabled ? htmlEditorTab.value : 'edit'
+	htmlCheckRan.value = false
+	htmlCheckIssues.value = []
+}
+
+const setLessonFormat = async (format) => {
+	if (format === lessonFormat.value) return
+
+	if (format === 'html') {
+		const hasNativeContent = await nativeEditorHasContent()
+		if (
+			hasNativeContent &&
+			!window.confirm(
+				__(
+					'Switch to a Preserved HTML draft? Nothing changes until you press Save, and leaving without saving restores the current lesson.'
+				)
 			)
-		} else if (data.lesson.instructor_notes) {
-			let blocks = convertToJSON(data.lesson)
-			instructorEditor.value.render({
-				blocks: blocks,
-			})
+		) {
+			return
 		}
+		setHtmlBodyMode(true)
+		isDirty.value = true
+		return
+	}
+
+	if (
+		lesson.body?.trim() &&
+		!window.confirm(
+			__(
+				'Switch to a Frappe Native draft? Saving may simplify preserved HTML styling. Leaving without saving restores the current HTML lesson.'
+			)
+		)
+	) {
+		return
+	}
+
+	setHtmlBodyMode(false)
+	await nextTick()
+	await renderBodyInNativeEditor()
+	isDirty.value = true
+}
+
+const nativeEditorHasContent = async () => {
+	if (lesson.content) return true
+	if (!editor.value) return false
+
+	try {
+		await editor.value.isReady
+		let outputData = await editor.value.save()
+		outputData = removeEmptyBlocks(outputData)
+		return outputData.blocks.some((block) => {
+			if (block.type === 'paragraph') {
+				return Boolean(block.data?.text?.trim())
+			}
+			return Object.keys(block.data || {}).some((key) => {
+				let value = block.data[key]
+				return Array.isArray(value) ? value.length : Boolean(value)
+			})
+		})
+	} catch {
+		return false
+	}
+}
+
+const renderBodyInNativeEditor = async () => {
+	if (!lesson.body || !editor.value) return
+	await editor.value.isReady
+	await editor.value.render({
+		blocks: convertToJSON(lesson),
 	})
 }
 
-const enableAutoSave = () => {
-	autoSaveInterval = setInterval(() => {
-		saveLesson({ showSuccessMessage: false })
-	}, 10000)
+const addInstructorNotes = async (data) => {
+	const lessonData = data.lesson || {}
+	await instructorEditor.value.isReady
+	if (lessonData.instructor_content) {
+		await instructorEditor.value.render(
+			sanitizeEditorJs(JSON.parse(lessonData.instructor_content))
+		)
+	} else if (lessonData.instructor_notes) {
+		let blocks = convertToJSON(lessonData)
+		await instructorEditor.value.render({
+			blocks: blocks,
+		})
+	}
 }
 
 const keyboardShortcut = (e) => {
@@ -162,9 +468,58 @@ const keyboardShortcut = (e) => {
 	}
 }
 
+const confirmNavigation = () => {
+	if (!isDirty.value) return true
+	return window.confirm(
+		__(
+			'Leave without saving? Your draft changes will be discarded and the last saved lesson will remain unchanged.'
+		)
+	)
+}
+
+const handleBeforeUnload = (event) => {
+	if (!isDirty.value) return
+	event.preventDefault()
+	event.returnValue = ''
+}
+
+const discardAndLeave = () => {
+	if (
+		!window.confirm(
+			__(
+				'Discard all unsaved changes and leave this lesson? The last saved version will remain unchanged.'
+			)
+		)
+	) {
+		return
+	}
+
+	isDirty.value = false
+	if (lessonDetails.data?.lesson) {
+		router.push({
+			name: 'Lesson',
+			params: {
+				courseName: props.courseName,
+				chapterNumber: props.chapterNumber,
+				lessonNumber: props.lessonNumber,
+			},
+		})
+		return
+	}
+
+	router.push({
+		name: 'CourseDetail',
+		params: { courseName: props.courseName },
+		hash: '#settings',
+	})
+}
+
+onBeforeRouteLeave(confirmNavigation)
+onBeforeRouteUpdate(confirmNavigation)
+
 onBeforeUnmount(() => {
-	clearInterval(autoSaveInterval)
 	window.removeEventListener('keydown', keyboardShortcut)
+	window.removeEventListener('beforeunload', handleBeforeUnload)
 })
 
 const newLessonResource = createResource({
@@ -175,7 +530,7 @@ const newLessonResource = createResource({
 				doctype: 'Course Lesson',
 				course: props.courseName,
 				chapter: lessonDetails.data?.chapter.name,
-				...lesson,
+				...values.lessonData,
 			},
 		}
 	},
@@ -186,8 +541,8 @@ const editLesson = createResource({
 	makeParams(values) {
 		return {
 			doctype: 'Course Lesson',
-			name: values.lesson,
-			fieldname: lesson,
+			name: values.lessonName,
+			fieldname: values.lessonData,
 		}
 	},
 })
@@ -269,11 +624,14 @@ const convertToJSON = (lessonData) => {
 			})
 		} else if (block.includes('{{ Embed')) {
 			let embed = block.match(/\(["']([^"']+?)["']\)/)[1]
+			let embedParts = embed.split('|||')
+			let embedUrl = embedParts.length > 1 ? embedParts[1] : embed
 			blocks.push({
 				type: 'embed',
 				data: {
-					service: embed.split('|||')[0],
-					embed: embed.split('|||')[1],
+					service:
+						embedParts.length > 1 ? embedParts[0] : getEmbedService(embedUrl),
+					embed: embedUrl,
 				},
 			})
 		} else if (block.includes('![]')) {
@@ -312,28 +670,125 @@ const convertToJSON = (lessonData) => {
 			},
 		})
 	}
+	if (lessonData.quiz_id) {
+		blocks.push({
+			type: 'quiz',
+			data: {
+				quiz: lessonData.quiz_id,
+			},
+		})
+	}
 
 	return blocks
 }
 
-const saveLesson = (e) => {
-	showSuccessMessage = false
-	if (typeof e != 'undefined' && e.showSuccessMessage) {
-		showSuccessMessage = true
+const isImportedHtmlLesson = (lessonData) => {
+	if (!lessonData?.body || lessonData.content) return false
+	return /<\/?(div|p|span|img|video|source|iframe|table|thead|tbody|tr|td|th|h[1-6]|ul|ol|li|a)\b/i.test(
+		lessonData.body
+	)
+}
+
+const getEmbedService = (url) => {
+	if (url.includes('youtube.com') || url.includes('youtu.be')) return 'youtube'
+	if (/https?:\/\/(?:[^/]+\.)?h5p\.com(?:\/|$)/i.test(url)) return 'h5p'
+	if (url.includes('docs.google.com/presentation')) return 'googleSlides'
+	if (url.includes('mentimeter.com')) return 'mentimeter'
+	if (url.includes('menti.com')) return 'menti'
+	return 'genericEmbed'
+}
+
+const getHtmlCheckIssues = () => {
+	let body = lesson.body || ''
+	let issues = []
+
+	if (body.includes('$IMS-CC-FILEBASE$')) {
+		issues.push(
+			__(
+				'There are unresolved Canvas file links. Re-import or replace them with Frappe file URLs.'
+			)
+		)
 	}
-	editor.value.save().then((outputData) => {
-		outputData = removeEmptyBlocks(outputData)
-		lesson.content = JSON.stringify(outputData)
-		instructorEditor.value.save().then((outputData) => {
-			outputData = removeEmptyBlocks(outputData)
-			lesson.instructor_content = JSON.stringify(outputData)
-			if (lessonDetails.data?.lesson) {
-				editCurrentLesson()
-			} else {
-				createNewLesson()
-			}
-		})
-	})
+	if (/data-api-(endpoint|returntype)=/i.test(body)) {
+		issues.push(__('Canvas API attributes are still present in the HTML.'))
+	}
+	if (/<video\b(?![^>]*\bcontrols\b)[^>]*>/i.test(body)) {
+		issues.push(__('At least one video tag is missing controls.'))
+	}
+	if (/<(?:img|iframe|source)\b[^>]*\bsrc=(["'])\s*\1/i.test(body)) {
+		issues.push(__('At least one media element has an empty source.'))
+	}
+	if (/<script\b/i.test(body)) {
+		issues.push(__('Script tags should not be used inside lessons.'))
+	}
+	if (/\b(?:src|href)=(["'])http:\/\//i.test(body)) {
+		issues.push(
+			__(
+				'At least one embedded resource uses HTTP and may be blocked when the LMS uses HTTPS.'
+			)
+		)
+	}
+
+	return issues
+}
+
+const checkHtmlLesson = () => {
+	htmlCheckIssues.value = getHtmlCheckIssues()
+	htmlCheckRan.value = true
+	if (!htmlCheckIssues.value.length) {
+		toast.success(__('No obvious HTML issues found'))
+	}
+}
+
+const saveLesson = async ({ showSuccessMessage = false } = {}) => {
+	if (isSaving.value) return
+	isSaving.value = true
+
+	try {
+		const lessonData = await buildLessonData()
+		const validationError = validateLesson(lessonData)
+		if (validationError) {
+			toast.error(validationError)
+			return
+		}
+
+		if (lessonDetails.data?.lesson) {
+			await editCurrentLesson(lessonData, showSuccessMessage)
+		} else {
+			await createNewLesson(lessonData)
+		}
+	} catch (error) {
+		toast.error(
+			error?.messages?.[0] ||
+				error?.message ||
+				__('Unable to save the lesson. Please try again.')
+		)
+	} finally {
+		isSaving.value = false
+	}
+}
+
+const buildLessonData = async () => {
+	let instructorOutput = await instructorEditor.value.save()
+	instructorOutput = removeEmptyBlocks(instructorOutput)
+
+	const lessonData = {
+		...lesson,
+		instructor_content: JSON.stringify(instructorOutput),
+	}
+
+	if (htmlBodyMode.value) {
+		lessonData.content = ''
+		htmlCheckIssues.value = getHtmlCheckIssues()
+		htmlCheckRan.value = htmlCheckIssues.value.length > 0
+		return lessonData
+	}
+
+	let outputData = await editor.value.save()
+	outputData = removeEmptyBlocks(outputData)
+	lessonData.content = JSON.stringify(outputData)
+	lessonData.body = ''
+	return lessonData
 }
 
 const removeEmptyBlocks = (outputData) => {
@@ -344,64 +799,55 @@ const removeEmptyBlocks = (outputData) => {
 	return outputData
 }
 
-const createNewLesson = () => {
-	newLessonResource.submit(
-		{},
-		{
-			validate() {
-				return validateLesson()
-			},
-			onSuccess(data) {
-				lessonReference.submit(
-					{ lesson: data.name },
-					{
-						onSuccess() {
-							if (user.data?.is_system_manager)
-								updateOnboardingStep('create_first_lesson')
+const createNewLesson = async (lessonData) => {
+	const data = await newLessonResource.submit({ lessonData }, { onError() {} })
+	await lessonReference.submit({ lesson: data.name }, { onError() {} })
 
-							capture('lesson_created')
-							toast.success(__('Lesson created successfully'))
-							isDirty.value = false
-							lessonDetails.reload()
-						},
-					}
-				)
-			},
-			onError(err) {
-				toast.error(err.messages?.[0] || err)
-			},
-		}
-	)
+	if (user.data?.is_system_manager) updateOnboardingStep('create_first_lesson')
+
+	capture('lesson_created')
+	isDirty.value = false
+	toast.success(__('Lesson created successfully'))
+	await lessonDetails.reload()
 }
 
-const editCurrentLesson = () => {
-	editLesson.submit(
+const editCurrentLesson = async (lessonData, showSuccessMessage) => {
+	await editLesson.submit(
 		{
-			lesson: lessonDetails.data.lesson.name,
+			lessonName: lessonDetails.data.lesson.name,
+			lessonData,
 		},
-		{
-			validate() {
-				return validateLesson()
-			},
-			onSuccess() {
-				showSuccessMessage
-					? toast.success(__('Lesson updated successfully'))
-					: ''
-				isDirty.value = false
-			},
-			onError(err) {
-				toast.error(err.message)
-			},
-		}
+		{ onError() {} }
 	)
+
+	isHydrating.value = true
+	Object.assign(lesson, lessonData)
+	await nextTick()
+	isDirty.value = false
+	isHydrating.value = false
+	if (showSuccessMessage) {
+		toast.success(__('Lesson updated successfully'))
+	}
 }
 
-const validateLesson = () => {
-	if (!lesson.title) {
-		return 'Title is required'
+const validateLesson = (lessonData) => {
+	if (!lessonData.title) {
+		return __('Title is required')
 	}
-	if (!lesson.content) {
-		return 'Content is required'
+	if (htmlBodyMode.value && !lessonData.body?.trim()) {
+		return __('Content is required')
+	}
+	if (htmlBodyMode.value && /<script\b/i.test(lessonData.body || '')) {
+		return __('Script tags should not be used inside lessons.')
+	}
+	if (
+		htmlBodyMode.value &&
+		(lessonData.body || '').includes('$IMS-CC-FILEBASE$')
+	) {
+		return __('Resolve Canvas file links before saving.')
+	}
+	if (!htmlBodyMode.value && !lessonData.content) {
+		return __('Content is required')
 	}
 }
 
