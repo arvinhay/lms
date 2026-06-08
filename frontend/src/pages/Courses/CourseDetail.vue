@@ -1,12 +1,10 @@
 <template>
-	<div v-if="course.data">
-		<header
-			class="rea-page-header sticky top-0 z-10 flex items-center justify-between border-b bg-surface-white px-3 py-2.5 sm:px-5"
-		>
-			<Breadcrumbs class="h-7" :items="breadcrumbs" />
-			<div v-if="tabIndex == 2 && isAdmin" class="flex items-center gap-x-2">
-				<Badge v-if="childRef?.isDirty" theme="orange">
-					{{ __('Not Saved') }}
+	<div class="flex h-full flex-col">
+		<LayoutHeader :isLoading="!course.data">
+			<template #left-header>
+				<Breadcrumbs class="h-7" :items="breadcrumbs" />
+				<Badge v-if="course.data?.published" theme="green">
+					{{ __('Published') }}
 				</Badge>
 			</template>
 			<template #right-header>
