@@ -1,7 +1,7 @@
 <template>
 	<div v-if="youtube">
 		<iframe
-			class="youtube-video lms-responsive-media lms-aspect-video"
+			class="youtube-video"
 			:src="getYouTubeVideoSource(youtube.split('/').pop())"
 			width="100%"
 			:height="screenSize.width < 640 ? 200 : 400"
@@ -18,7 +18,7 @@
 		<div v-for="block in content?.split('\n\n')">
 			<div v-if="block.includes('{{ YouTubeVideo')">
 				<iframe
-					class="youtube-video lms-responsive-media lms-aspect-video"
+					class="youtube-video"
 					:src="getYouTubeVideoSource(block)"
 					width="100%"
 					:height="screenSize.width < 640 ? 200 : 400"
@@ -31,18 +31,16 @@
 			</div>
 			<div v-else-if="block.includes('{{ Video')">
 				<video
-					class="lms-responsive-media"
 					controls
 					width="100%"
 					controlsList="nodownload"
-					oncontextmenu="return false"
+					oncontextmenu="return false;"
 				>
 					<source :src="getId(block)" type="video/mp4" />
 				</video>
 			</div>
 			<div v-else-if="block.includes('{{ PDF')">
 				<iframe
-					class="lms-responsive-media lms-document-frame"
 					:src="getPDFSource(block)"
 					width="100%"
 					height="700px"
@@ -57,19 +55,11 @@
 			</div>
 			<div v-else-if="block.includes('{{ Embed')">
 				<iframe
-					:class="['lms-responsive-media', getEmbedClass(block)]"
 					width="100%"
 					:height="getEmbedHeight(block)"
 					:src="getId(block)"
 					frameborder="0"
-					allow="
-						autoplay *;
-						geolocation *;
-						microphone *;
-						camera *;
-						midi *;
-						encrypted-media *;
-					"
+					allow="autoplay *; geolocation *; microphone *; camera *; midi *; encrypted-media *"
 					allowfullscreen
 				>
 				</iframe>
@@ -153,8 +143,8 @@ const getId = (block) => {
 
 const hasEmbeddedBlocks = computed(() =>
 	/{{\s*(YouTubeVideo|Quiz|Video|PDF|Audio|Embed)\s*\(/.test(
-		props.content || '',
-	),
+		props.content || ''
+	)
 )
 
 const h5pResizerUrls = computed(() => {
@@ -165,10 +155,7 @@ const h5pResizerUrls = computed(() => {
 	while ((match = iframePattern.exec(props.content || ''))) {
 		try {
 			const source = new URL(match[2], window.location.origin)
-			if (
-				source.hostname === 'h5p.com' ||
-				source.hostname.endsWith('.h5p.com')
-			) {
+			if (source.hostname === 'h5p.com' || source.hostname.endsWith('.h5p.com')) {
 				resizerUrls.add(`${source.origin}/js/h5p-resizer.js`)
 			}
 		} catch {
@@ -193,34 +180,18 @@ const loadH5PResizer = () => {
 }
 
 const getEmbedHeight = (block) => {
-	const src = getId(block).toLowerCase()
+	const src = getId(block)
 	if (screenSize.width < 640) {
-		if (src.includes('youtube.com') || src.includes('youtu.be')) return 220
-		if (src.includes('vimeo.com')) return 220
+		if (src.includes('youtube.com')) return 220
 		if (src.includes('docs.google.com/presentation')) return 320
 		return 620
 	}
 
-	if (src.includes('youtube.com') || src.includes('youtu.be')) return 480
-	if (src.includes('vimeo.com')) return 480
+	if (src.includes('youtube.com')) return 480
 	if (src.includes('docs.google.com/presentation')) return 620
 	if (src.includes('mentimeter.com') || src.includes('menti.com')) return 720
 	if (src.includes('h5p.com')) return 900
 	return 640
-}
-
-const getEmbedClass = (block) => {
-	const src = getId(block).toLowerCase()
-	if (
-		src.includes('youtube.com') ||
-		src.includes('youtu.be') ||
-		src.includes('vimeo.com') ||
-		src.includes('docs.google.com/presentation')
-	) {
-		return 'lms-aspect-video'
-	}
-	if (src.includes('h5p.com')) return 'lms-h5p-frame'
-	return ''
 }
 
 onMounted(loadH5PResizer)

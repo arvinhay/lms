@@ -3,7 +3,6 @@
 	--lms-document-border: transparent;
 	--lms-document-text: #1f2933;
 	--lms-document-link: #167b8d;
-	--lms-embed-max-width: 1000px;
 }
 
 :root[data-lms-theme='dark'] {
@@ -31,74 +30,13 @@
 	max-width: 100%;
 }
 
-.lms-responsive-media,
-.lms-html-document :where(video, iframe, embed, object) {
-	display: block;
-	width: min(100%, var(--lms-embed-max-width)) !important;
-	max-width: var(--lms-embed-max-width) !important;
-	margin: 1.25rem auto;
-}
-
 .lms-html-document img,
-.lms-html-document video,
-.lms-responsive-media:is(video) {
-	height: auto !important;
+.lms-html-document video {
+	height: auto;
 }
 
-.lms-aspect-video,
-.lms-html-document
-	iframe:where(
-		[src*='youtube.com' i],
-		[src*='youtu.be' i],
-		[src*='vimeo.com' i],
-		[src*='docs.google.com/presentation' i]
-	) {
-	aspect-ratio: 16 / 9;
-	height: auto !important;
-	min-height: 240px;
-}
-
-.lms-html-document
-	iframe:where(
-		[src*='h5p.com' i],
-		[src*='menti.com' i],
-		[src*='mentimeter.com' i]
-	) {
-	min-height: 560px;
-}
-
-.lms-document-frame {
-	min-height: min(72vh, 720px);
-}
-
-.lms-h5p-frame {
-	min-height: 560px;
-}
-
-@media (max-width: 1024px) {
-	:root {
-		--lms-embed-max-width: 100%;
-	}
-}
-
-@media (max-width: 768px) {
-	.lms-responsive-media,
-	.lms-html-document :where(video, iframe, embed, object) {
-		margin: 1rem auto;
-	}
-
-	.lms-h5p-frame {
-		min-height: 480px;
-	}
-
-	.lms-html-document
-		iframe:where(
-			[src*='h5p.com' i],
-			[src*='menti.com' i],
-			[src*='mentimeter.com' i]
-		) {
-		min-height: 480px;
-	}
+.lms-html-document iframe {
+	width: 100%;
 }
 
 :root[data-lms-theme='dark'] .lms-html-document {
@@ -231,24 +169,16 @@
 
 :root[data-lms-theme='rea'] .rea-lms-theme .bg-surface-blue-3,
 :root[data-lms-theme='rea'] .rea-lms-theme .bg-blue-500,
-:root[data-lms-theme='rea']
-	.rea-lms-theme
-	[class*='hover:bg-surface-blue-3']:hover,
-:root[data-lms-theme='rea']
-	.rea-lms-theme
-	[class*='active:bg-blue-700']:active {
+:root[data-lms-theme='rea'] .rea-lms-theme [class*='hover:bg-surface-blue-3']:hover,
+:root[data-lms-theme='rea'] .rea-lms-theme [class*='active:bg-blue-700']:active {
 	background-color: var(--rea-primary) !important;
 	color: #ffffff !important;
 }
 
 :root[data-lms-theme='rea'] .rea-lms-theme .border-outline-blue-1,
 :root[data-lms-theme='rea'] .rea-lms-theme [class*='focus:ring-blue-400']:focus,
-:root[data-lms-theme='rea']
-	.rea-lms-theme
-	[class*='focus-visible:ring-blue-400']:focus-visible,
-:root[data-lms-theme='rea']
-	.rea-lms-theme
-	[class*='focus:border-blue-600']:focus {
+:root[data-lms-theme='rea'] .rea-lms-theme [class*='focus-visible:ring-blue-400']:focus-visible,
+:root[data-lms-theme='rea'] .rea-lms-theme [class*='focus:border-blue-600']:focus {
 	border-color: var(--rea-accent-border) !important;
 	--tw-ring-color: var(--rea-accent-border) !important;
 }
