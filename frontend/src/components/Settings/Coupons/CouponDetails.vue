@@ -1,21 +1,15 @@
 <template>
-	<SettingsLayout
-		:title="data?.name ? __('Edit Coupon') : __('New Coupon')"
-		:description="
-			__(
-				'Set the discount, validity, and the courses or batches this coupon applies to.'
-			)
-		"
-		:show-back="true"
-		@back="emit('updateStep', 'list')"
-	>
-		<template #header-actions>
-			<Button variant="solid" @click="saveCoupon()">
-				{{ __('Save') }}
-			</Button>
-		</template>
-
-		<div class="space-y-4">
+	<div class="flex flex-col text-base h-full">
+		<div class="flex items-center gap-x-2 mb-8 -ms-1.5">
+			<ChevronLeft
+				class="size-5 stroke-1.5 text-ink-gray-7 cursor-pointer"
+				@click="emit('updateStep', 'list')"
+			/>
+			<div class="text-xl font-semibold text-ink-gray-9">
+				{{ data?.name ? __('Edit Coupon') : __('New Coupon') }}
+			</div>
+		</div>
+		<div class="space-y-4 overflow-y-auto">
 			<div>
 				<Switch
 					size="sm"
@@ -29,16 +23,15 @@
 					v-model="data.code"
 					:label="__('Coupon Code')"
 					:required="true"
-					:placeholder="__('e.g. WELCOME10')"
 					@input="() => (data.code = data.code.toUpperCase())"
 				/>
 
-				<Select
+				<FormControl
 					v-model="data.discount_type"
 					:label="__('Discount Type')"
 					:required="true"
+					type="select"
 					:options="['Percentage', 'Fixed Amount']"
-					class="w-full"
 				/>
 
 				<FormControl
@@ -74,23 +67,26 @@
 					:disabled="true"
 				/>
 			</div>
-			<div class="pt-4">
-				<div class="font-semibold text-ink-gray-9 mb-3">
+			<div class="py-8">
+				<div class="font-semibold text-ink-gray-9 mb-2">
 					{{ __('Applicable For') }}
 				</div>
 				<CouponItems ref="couponItems" :data="data" :coupons="coupons" />
 			</div>
 		</div>
-	</SettingsLayout>
+		<div class="mt-auto flex gap-x-2 items-center ms-auto">
+			<Button variant="solid" @click="saveCoupon()">
+				{{ __('Save') }}
+			</Button>
+		</div>
+	</div>
 </template>
 <script setup lang="ts">
-import { Button, FormControl, toast } from 'frappe-ui'
-import Switch from '@/components/Controls/Switch.vue'
+import { Button, FormControl, toast, Switch } from 'frappe-ui'
 import { ref } from 'vue'
+import { ChevronLeft } from 'lucide-vue-next'
 import type { Coupon, Coupons } from './types'
 import CouponItems from '@/components/Settings/Coupons/CouponItems.vue'
-import SettingsLayout from '@/components/Layouts/SettingsLayout.vue'
-import Select from '@/components/Controls/Select.vue'
 
 const couponItems = ref<any>(null)
 const emit = defineEmits(['updateStep'])

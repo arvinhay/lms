@@ -46,10 +46,11 @@
 		</span>
 	</div>
 </template>
-<script setup lang="ts">
-import type { CourseInstructorInfo } from '@/types/api'
-
-defineProps<{
-	instructors: CourseInstructorInfo[]
-}>()
+<script setup>
+const props = defineProps({
+	instructors: {
+		type: Array,
+		required: true,
+	},
+})
 </script>

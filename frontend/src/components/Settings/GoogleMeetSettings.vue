@@ -1,98 +1,105 @@
 <template>
-	<template v-if="view === 'list'">
-		<SettingsLayout :title="label" :description="__(description)">
-			<template #header-actions>
-				<Button variant="solid" @click="openForm('new')">
+	<div class="flex flex-col min-h-0 text-base">
+		<div class="flex items-center justify-between mb-5">
+			<div class="flex flex-col space-y-2">
+				<div class="text-xl font-semibold text-ink-gray-9">
+					{{ label }}
+				</div>
+				<div class="text-ink-gray-6 leading-5">
+					{{ __(description) }}
+				</div>
+			</div>
+			<div class="flex items-center gap-x-5">
+				<Button @click="openForm('new')">
 					<template #prefix>
-						<Plus class="h-4 w-4 stroke-1.5" />
+						<Plus class="h-3 w-3 stroke-1.5" />
 					</template>
 					{{ __('New') }}
 				</Button>
-			</template>
-			<div v-if="googleMeetAccounts.data?.length">
-				<ListView
-					:columns="columns"
-					:rows="googleMeetAccounts.data"
-					row-key="name"
-					:options="{
-						showTooltip: false,
-						onRowClick: (row) => {
-							openForm(row.name)
-						},
-					}"
-				>
-					<ListHeader
-						class="mb-2 grid items-center gap-x-4 rounded bg-surface-gray-2 p-2"
-					>
-						<ListHeaderItem :item="item" v-for="item in columns">
-							<template #prefix="{ item }">
-								<FeatherIcon
-									v-if="item.icon"
-									:name="item.icon"
-									class="h-4 w-4 stroke-1.5"
-								/>
-							</template>
-						</ListHeaderItem>
-					</ListHeader>
-
-					<ListRows>
-						<ListRow :row="row" v-for="row in googleMeetAccounts.data">
-							<template #default="{ column, item }">
-								<ListRowItem :item="row[column.key]" :align="column.align">
-									<template #prefix>
-										<div v-if="column.key == 'member_name'">
-											<Avatar
-												class="flex items-center"
-												:image="row['member_image']"
-												:label="item"
-												size="sm"
-											/>
-										</div>
-									</template>
-									<div v-if="column.key == 'enabled'">
-										<Badge v-if="row[column.key]" theme="green">
-											{{ __('Enabled') }}
-										</Badge>
-										<Badge v-else theme="gray">
-											{{ __('Disabled') }}
-										</Badge>
-									</div>
-									<div v-else class="leading-5 text-sm">
-										{{ row[column.key] }}
-									</div>
-								</ListRowItem>
-							</template>
-						</ListRow>
-					</ListRows>
-
-					<ListSelectBanner>
-						<template #actions="{ unselectAll, selections }">
-							<div class="flex gap-2">
-								<Button
-									variant="ghost"
-									@click="removeAccount(selections, unselectAll)"
-								>
-									<Trash2 class="h-4 w-4 stroke-1.5" />
-								</Button>
-							</div>
-						</template>
-					</ListSelectBanner>
-				</ListView>
 			</div>
-			<EmptyStateLayout
-				v-else
-				name="Google Meet Settings"
-				:description="__('Add one to get started.')"
-				:icon="Presentation"
-				width="lg"
-			/>
-		</SettingsLayout>
-	</template>
-	<GoogleMeetAccountForm
-		v-else
-		:accountID="currentAccount"
+		</div>
+		<div v-if="googleMeetAccounts.data?.length" class="overflow-y-auto">
+			<ListView
+				:columns="columns"
+				:rows="googleMeetAccounts.data"
+				row-key="name"
+				:options="{
+					showTooltip: false,
+					onRowClick: (row) => {
+						openForm(row.name)
+					},
+				}"
+			>
+				<ListHeader
+					class="mb-2 grid items-center gap-x-4 rounded bg-surface-gray-2 p-2"
+				>
+					<ListHeaderItem :item="item" v-for="item in columns">
+						<template #prefix="{ item }">
+							<FeatherIcon
+								v-if="item.icon"
+								:name="item.icon"
+								class="h-4 w-4 stroke-1.5"
+							/>
+						</template>
+					</ListHeaderItem>
+				</ListHeader>
+
+				<ListRows>
+					<ListRow :row="row" v-for="row in googleMeetAccounts.data">
+						<template #default="{ column, item }">
+							<ListRowItem :item="row[column.key]" :align="column.align">
+								<template #prefix>
+									<div v-if="column.key == 'member_name'">
+										<Avatar
+											class="flex items-center"
+											:image="row['member_image']"
+											:label="item"
+											size="sm"
+										/>
+									</div>
+								</template>
+								<div v-if="column.key == 'enabled'">
+									<Badge v-if="row[column.key]" theme="green">
+										{{ __('Enabled') }}
+									</Badge>
+									<Badge v-else theme="gray">
+										{{ __('Disabled') }}
+									</Badge>
+								</div>
+								<div v-else class="leading-5 text-sm">
+									{{ row[column.key] }}
+								</div>
+							</ListRowItem>
+						</template>
+					</ListRow>
+				</ListRows>
+
+				<ListSelectBanner>
+					<template #actions="{ unselectAll, selections }">
+						<div class="flex gap-2">
+							<Button
+								variant="ghost"
+								@click="removeAccount(selections, unselectAll)"
+							>
+								<Trash2 class="h-4 w-4 stroke-1.5" />
+							</Button>
+						</div>
+					</template>
+				</ListSelectBanner>
+			</ListView>
+		</div>
+		<EmptyStateLayout
+			v-else
+			name="Google Meet Settings"
+			:description="__('Add one to get started.')"
+			:icon="Presentation"
+			width="lg"
+		/>
+	</div>
+	<GoogleMeetAccountModal
+		v-model="showForm"
 		v-model:googleMeetAccounts="googleMeetAccounts"
-		@updateStep="(step) => (view = step)"
+		:accountID="currentAccount"
 	/>
 </template>
 <script setup lang="ts">
@@ -116,12 +123,11 @@ import { computed, inject, onMounted, ref } from 'vue'
 import { Plus, Presentation, Trash2 } from 'lucide-vue-next'
 import { cleanError } from '@/utils'
 import { User } from '@/components/Settings/types'
-import GoogleMeetAccountForm from '@/components/Settings/GoogleMeetAccountForm.vue'
+import GoogleMeetAccountModal from '@/components/Settings/GoogleMeetAccountModal.vue'
 import EmptyStateLayout from '@/components/Layouts/EmptyStateLayout.vue'
-import SettingsLayout from '@/components/Layouts/SettingsLayout.vue'
 
 const user = inject<User | null>('$user')
-const view = ref<'list' | 'form'>('list')
+const showForm = ref(false)
 const currentAccount = ref<string | null>(null)
 
 const props = defineProps({
@@ -161,7 +167,7 @@ const fetchGoogleMeetAccounts = () => {
 
 const openForm = (accountID: string) => {
 	currentAccount.value = accountID
-	view.value = 'form'
+	showForm.value = true
 }
 
 const removeAccount = (selections, unselectAll) => {

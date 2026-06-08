@@ -1,18 +1,23 @@
 <template>
-	<SettingsLayout
-		v-if="view === 'list'"
-		:title="__(label)"
-		:description="__(description)"
-	>
-		<template #header-actions>
-			<Button variant="solid" @click="openForm('new')">
+	<div class="flex min-h-0 flex-col text-base">
+		<div class="flex items-center justify-between mb-5">
+			<div>
+				<div class="text-xl font-semibold mb-2 text-ink-gray-9">
+					{{ __(label) }}
+				</div>
+				<div class="text-ink-gray-6 leading-5">
+					{{ __(description) }}
+				</div>
+			</div>
+			<Button @click="openForm('new')">
 				<template #prefix>
-					<Plus class="h-4 w-4 stroke-1.5" />
+					<Plus class="h-3 w-3 stroke-1.5" />
 				</template>
 				{{ __('New') }}
 			</Button>
-		</template>
-		<div v-if="paymentGateways.data?.length">
+		</div>
+
+		<div v-if="paymentGateways.data?.length" class="overflow-y-auto">
 			<ListView
 				:columns="columns"
 				:rows="paymentGateways.data"
@@ -78,12 +83,11 @@
 			:description="__('Add one to get started.')"
 			:icon="DollarSign"
 		/>
-	</SettingsLayout>
+	</div>
 	<PaymentGatewayDetails
-		v-else
+		v-model="showForm"
 		:gatewayID="currentGateway"
 		v-model:paymentGateways="paymentGateways"
-		@updateStep="(step) => (view = step)"
 	/>
 </template>
 <script setup>
@@ -107,9 +111,8 @@ import { Plus, Trash2, DollarSign } from 'lucide-vue-next'
 import PaymentGatewayDetails from '@/components/Settings/PaymentGatewayDetails.vue'
 import { cleanError } from '@/utils'
 import EmptyStateLayout from '@/components/Layouts/EmptyStateLayout.vue'
-import SettingsLayout from '@/components/Layouts/SettingsLayout.vue'
 
-const view = ref('list')
+const showForm = ref(false)
 const currentGateway = ref(null)
 
 const props = defineProps({
@@ -132,7 +135,7 @@ const paymentGateways = createListResource({
 
 const openForm = (gatewayID) => {
 	currentGateway.value = gatewayID
-	view.value = 'form'
+	showForm.value = true
 }
 
 const removeAccount = (selections, unselectAll) => {

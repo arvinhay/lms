@@ -1,14 +1,9 @@
 <template>
-	<div class="py-5">
-		<div class="mt-0">
-			<div class="w-5/6 mx-auto pt-4">
-				<div
-					class="flex justify-between cursor-pointer"
-					@click="
-						() => {
-							openInstructorEditor = !openInstructorEditor
-						}
-					"
+	<div class="">
+		<div class="grid md:grid-cols-[75%,25%] h-screen">
+			<div class="border-e">
+				<header
+					class="sticky top-0 z-10 flex flex-col md:flex-row md:items-center justify-between border-b overflow-hidden bg-surface-white px-3 py-2.5 sm:px-5"
 				>
 					<label class="block font-medium text-ink-gray-5 mb-1">
 						{{ __('Instructor Notes') }}
@@ -21,22 +16,11 @@
 						}"
 					/>
 				</div>
-				<div
-					v-show="openInstructorEditor"
-					id="instructor-notes"
-					class="ProseMirror prose prose-table:table-fixed prose-td:p-2 prose-th:p-2 prose-td:border prose-th:border prose-td:border-outline-gray-2 prose-th:border-outline-gray-2 prose-td:relative prose-th:relative prose-th:bg-surface-gray-2 prose-sm max-w-none !whitespace-normal py-3"
-				></div>
 			</div>
-		</div>
-		<div class="border-t mt-4">
-			<div class="w-5/6 mx-auto pt-4">
-				<label class="block font-medium text-ink-gray-5 mb-1">
-					{{ __('Content') }}
-				</label>
-				<div
-					id="content"
-					class="ProseMirror prose prose-table:table-fixed prose-td:p-2 prose-th:p-2 prose-td:border prose-th:border prose-td:border-outline-gray-2 prose-th:border-outline-gray-2 prose-td:relative prose-th:relative prose-th:bg-surface-gray-2 prose-sm max-w-none !whitespace-normal py-3"
-				></div>
+			<div class="">
+				<div class="sticky top-0 p-5">
+					<LessonHelp />
+				</div>
 			</div>
 		</div>
 	</div>
@@ -49,6 +33,7 @@ import { ChevronRight } from 'lucide-vue-next'
 import { getEditorTools, enablePlyr, sanitizeEditorJs } from '@/utils'
 import { useOnboarding, useTelemetry } from 'frappe-ui/frappe'
 
+const { brand } = sessionStore()
 const editor = ref(null)
 const instructorEditor = ref(null)
 const user = inject('$user')
@@ -71,16 +56,6 @@ const props = defineProps({
 		type: String,
 		required: true,
 	},
-})
-
-const isDirty = ref(false)
-function markDirty() {
-	if (lessonDetails.data?.lesson) isDirty.value = true
-}
-
-defineExpose({
-	saveLesson: () => saveLesson({ showSuccessMessage: true }),
-	isDirty,
 })
 
 onMounted(() => {
@@ -429,6 +404,60 @@ const validateLesson = () => {
 		return 'Content is required'
 	}
 }
+
+const breadcrumbs = computed(() => {
+	let crumbs = [
+		{
+			label: __('Courses'),
+			route: { name: 'Courses' },
+		},
+		{
+			label: lessonDetails.data?.course_title,
+			route: {
+				name: 'CourseDetail',
+				params: { courseName: props.courseName },
+				hash: '#settings',
+			},
+		},
+	]
+
+	if (lessonDetails?.data?.lesson) {
+		crumbs.push({
+			label: lessonDetails.data.lesson.title,
+			route: {
+				name: 'Lesson',
+				params: {
+					courseName: props.courseName,
+					chapterNumber: props.chapterNumber,
+					lessonNumber: props.lessonNumber,
+				},
+			},
+		})
+	}
+	crumbs.push({
+		label: lessonDetails?.data?.lesson
+			? __('Edit Lesson')
+			: __('Create Lesson'),
+		route: {
+			name: 'LessonForm',
+			params: {
+				courseName: props.courseName,
+				chapterNumber: props.chapterNumber,
+				lessonNumber: props.lessonNumber,
+			},
+		},
+	})
+	return crumbs
+})
+
+usePageMeta(() => {
+	return {
+		title: lessonDetails?.data?.lesson
+			? lessonDetails.data.lesson.title
+			: __('New Lesson'),
+		icon: brand.favicon,
+	}
+})
 </script>
 <style>
 .embed-tool__caption,

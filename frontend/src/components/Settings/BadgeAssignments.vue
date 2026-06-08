@@ -1,17 +1,26 @@
 <template>
-	<SettingsLayout
-		:title="props.badgeName || ''"
-		:show-back="true"
-		@back="show = false"
-	>
-		<template #header-actions>
+	<div class="text-base">
+		<div class="flex items-center justify-between gap-x-2 mb-5">
+			<div class="flex items-center gap-x-2">
+				<ChevronLeft
+					class="size-5 stroke-1.5 text-ink-gray-5 cursor-pointer"
+					@click="
+						() => {
+							show = false
+						}
+					"
+				/>
+				<div class="text-xl font-semibold text-ink-gray-9">
+					{{ props.badgeName }}
+				</div>
+			</div>
 			<Button @click="openForm('new')">
 				<template #prefix>
 					<Plus class="size-4 stroke-1.5" />
 				</template>
 				{{ __('New') }}
 			</Button>
-		</template>
+		</div>
 		<div v-if="assignments.data?.length">
 			<ListView
 				:rows="assignments.data"
@@ -83,13 +92,13 @@
 				{{ __('This badge has not been assigned to any students yet') }}
 			</div>
 		</div>
-		<BadgeAssignmentForm
-			v-model="showForm"
-			:badgeAssignmentID="currentAssignmentID"
-			:badge="props.badgeName"
-			v-model:badgeAssignments="assignments"
-		/>
-	</SettingsLayout>
+	</div>
+	<BadgeAssignmentForm
+		v-model="showForm"
+		:badgeAssignmentID="currentAssignmentID"
+		:badge="props.badgeName"
+		v-model:badgeAssignments="assignments"
+	/>
 </template>
 <script setup lang="ts">
 import {
@@ -106,11 +115,10 @@ import {
 	ListSelectBanner,
 	toast,
 } from 'frappe-ui'
-import { GraduationCap, Plus, Trash2 } from 'lucide-vue-next'
+import { ChevronLeft, GraduationCap, Plus, Trash2 } from 'lucide-vue-next'
 import { computed, inject, ref } from 'vue'
 import type { BadgeAssignment } from '@/components/Settings/types'
 import BadgeAssignmentForm from '@/components/Settings/BadgeAssignmentForm.vue'
-import SettingsLayout from '@/components/Layouts/SettingsLayout.vue'
 
 const show = defineModel<boolean>()
 const dayjs = inject('$dayjs') as any

@@ -110,7 +110,5 @@ jobs:
         with:
           name: Server
           token: ${{ secrets.CODECOV_TOKEN }}
-          # Coverage upload is informational; don't hard-fail CI when Codecov's
-          # CLI GPG-key fetch flakes or when a fork PR has no CODECOV_TOKEN.
-          fail_ci_if_error: false
+          fail_ci_if_error: true
           verbose: true

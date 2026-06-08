@@ -27,6 +27,22 @@
 					</span>
 				</Button>
 
+				<router-link
+					v-if="allowEdit()"
+					:to="{
+						name: 'LessonForm',
+						params: {
+							courseName: courseName,
+							chapterNumber: props.chapterNumber,
+							lessonNumber: props.lessonNumber,
+						},
+					}"
+				>
+					<Button>
+						{{ __('Edit') }}
+					</Button>
+				</router-link>
+
 				<Button v-if="lesson.data.next" @click="switchLesson('next')">
 					<template #suffix>
 						<ChevronRight class="w-4 h-4 stroke-1" />
@@ -153,6 +169,22 @@
 										{{ __('Previous') }}
 									</span>
 								</Button>
+
+								<router-link
+									v-if="allowEdit()"
+									:to="{
+										name: 'LessonForm',
+										params: {
+											courseName: courseName,
+											chapterNumber: props.chapterNumber,
+											lessonNumber: props.lessonNumber,
+										},
+									}"
+								>
+									<Button>
+										{{ __('Edit') }}
+									</Button>
+								</router-link>
 
 								<Button v-if="lesson.data.next" @click="switchLesson('next')">
 									<template #suffix>
@@ -331,11 +363,9 @@
 				<CourseOutline
 					v-if="!isOutlineCollapsed"
 					:courseName="courseName"
-					:courseTitle="lesson.data.course_title"
-					:progress="lessonProgress"
-					:selectedLessonNumber="`${chapterNumber}-${lessonNumber}`"
+					:key="chapterNumber"
+					:getProgress="lesson.data.membership ? true : false"
 					:completedLesson="completedLesson"
-					:withProgress="lesson.data.membership ? true : false"
 				/>
 			</div>
 		</div>
@@ -397,13 +427,6 @@ import {
 } from '@/utils'
 import { sessionStore } from '@/stores/session'
 import { useSidebar } from '@/stores/sidebar'
-import { useSettings } from '@/stores/settings'
-import {
-	resolveDwellSeconds,
-	isVideoComplete,
-	shouldStartDwellTimer,
-	shouldAttachVideoFallback,
-} from '@/utils/lessonProgress'
 import EditorJS from '@editorjs/editorjs'
 import LessonContent from '@/components/LessonContent.vue'
 import CourseInstructors from '@/components/CourseInstructors.vue'
@@ -412,7 +435,6 @@ import Discussions from '@/components/Discussions.vue'
 import CertificationLinks from '@/components/CertificationLinks.vue'
 import VideoStatistics from '@/components/Modals/VideoStatistics.vue'
 import CourseOutline from '@/components/CourseOutline.vue'
-import StudentLessonSidebar from '@/components/StudentLessonSidebar.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import Notes from '@/components/Notes/Notes.vue'
 import InlineLessonMenu from '@/components/Notes/InlineLessonMenu.vue'
@@ -456,27 +478,6 @@ const props = defineProps({
 		type: String,
 		required: true,
 	},
-	embedded: {
-		type: Boolean,
-		default: false,
-	},
-})
-
-const emit = defineEmits([
-	'select-lesson',
-	'lesson-completed',
-	'progress-updated',
-])
-
-// Exposed for the parent so the CourseEditor preview can render the same
-// Prev / Next / Zen-mode controls as the student header but place them in
-// the page-level LayoutHeader instead of inside the lesson body.
-defineExpose({
-	switchLesson: (direction) => switchLesson(direction),
-	goFullScreen: () => goFullScreen(),
-	canGoZen: () => canGoZen(),
-	hasPrev: computed(() => Boolean(lesson.data?.prev)),
-	hasNext: computed(() => Boolean(lesson.data?.next)),
 })
 
 onMounted(() => {
@@ -488,7 +489,6 @@ onMounted(() => {
 	socket.on('update_lesson_progress', (data) => {
 		if (data.course === props.courseName) {
 			lessonProgress.value = data.progress
-			emit('progress-updated', data.progress)
 		}
 	})
 })
@@ -507,7 +507,7 @@ const attachFullscreenEvent = () => {
 
 onBeforeUnmount(() => {
 	document.removeEventListener('fullscreenchange', attachFullscreenEvent)
-	if (!props.embedded) sidebarStore.isSidebarCollapsed = false
+	sidebarStore.isSidebarCollapsed = false
 	trackVideoWatchDuration()
 })
 
@@ -583,37 +583,17 @@ const renderEditor = (holder, content) => {
 	})
 }
 
-// Video-ended fires markProgress + trackVideoWatchDuration in parallel,
-// and trackVideoWatchDuration's getPlyrSourceDetails calls markProgress
-// again. Without an in-flight guard the two save_progress requests race
-// and the second one fails with TimestampMismatchError on LMS Enrollment.
-let progressSubmitting = false
 const markProgress = () => {
-	if (progressSubmitting) return
-	// Only enrolled students record progress; a moderator previewing has no
-	// membership row so save_progress would no-op server-side but still
-	// flip the in-memory `completedLesson` and show a green tick that
-	// vanishes on refresh.
-	if (
-		!user.data ||
-		!lesson.data ||
-		!lesson.data.membership ||
-		lesson.data.progress
-	)
-		return
-	progressSubmitting = true
-	progress.submit(
-		{},
-		{
-			onSuccess() {
-				progressSubmitting = false
-			},
-			onError(err) {
-				progressSubmitting = false
-				console.error(err)
-			},
-		}
-	)
+	if (user.data && lesson.data && !lesson.data.progress) {
+		progress.submit(
+			{},
+			{
+				onError(err) {
+					console.error(err)
+				},
+			}
+		)
+	}
 }
 
 const progress = createResource({
@@ -626,13 +606,7 @@ const progress = createResource({
 	},
 	onSuccess(data) {
 		lessonProgress.value = data
-		const name = lesson.data?.name
-		completedLesson.value = name
-		// Tell the parent (CourseEditor preview) so it can flip the
-		// sidebar's green tick and update the percentage without waiting
-		// for a refresh of the course resource.
-		if (name) emit('lesson-completed', name)
-		emit('progress-updated', data)
+		completedLesson.value = lesson.data?.name
 	},
 })
 
@@ -680,20 +654,12 @@ const switchLesson = (direction) => {
 			? lesson.data.prev.split('.')
 			: lesson.data.next.split('.')
 
-	const [chapterNumber, lessonNumber] = lessonIndex
-	// In the embedded editor preview, navigate the parent's selection so the
-	// pane swaps in place instead of routing away to /lesson/...
-	if (props.embedded) {
-		emit('select-lesson', { chapterNumber, lessonNumber })
-		return
-	}
-
 	router.push({
 		name: 'Lesson',
 		params: {
 			courseName: props.courseName,
-			chapterNumber,
-			lessonNumber,
+			chapterNumber: lessonIndex[0],
+			lessonNumber: lessonIndex[1],
 		},
 	})
 }
@@ -724,8 +690,6 @@ const resetLessonState = (newChapterNumber, newLessonNumber) => {
 		chapter: newChapterNumber,
 		lesson: newLessonNumber,
 	})
-	videoFallbackArmed = false
-	fallbackGeneration++
 	clearInterval(timerInterval)
 	timer.value = 0
 }
@@ -739,7 +703,7 @@ const toggleOutline = () => {
 }
 
 const trackVideoWatchDuration = () => {
-	if (!lesson.data?.membership) return
+	if (!lesson.data.membership) return
 	let videoDetails = getVideoDetails()
 	videoDetails = videoDetails.concat(getPlyrSourceDetails())
 	call('lms.lms.api.track_video_watch_duration', {
@@ -753,7 +717,7 @@ const getVideoDetails = () => {
 	const videos = document.querySelectorAll('video')
 	if (videos.length > 0) {
 		videos.forEach((video) => {
-			if (isVideoComplete(video.currentTime, video.duration)) markProgress()
+			if (video.currentTime == video.duration) markProgress()
 			details.push({
 				source: video.src,
 				watch_time: video.currentTime,
@@ -766,7 +730,7 @@ const getVideoDetails = () => {
 const getPlyrSourceDetails = () => {
 	let details = []
 	plyrSources.value.forEach((source) => {
-		if (isVideoComplete(source.currentTime, source.duration)) markProgress()
+		if (source.currentTime == source.duration) markProgress()
 		let src = cleanYouTubeUrl(source.source)
 		details.push({
 			source: src,
@@ -787,47 +751,13 @@ watch(
 	() => lesson.data,
 	async (data) => {
 		setupLesson(data)
-		// Settings drive dwell + enforcement; if they haven't resolved yet
-		// the timer reads undefined and falls back to 30s. Await the
-		// resource so the admin-configured dwell time wins from the first
-		// lesson load.
-		if (settingsStore.settings?.promise) {
-			try {
-				await settingsStore.settings.promise
-			} catch {}
-		}
 		startTimer()
 		await getPlyrSource()
 		updateNotes()
 		const hasVideoListener =
 			plyrSources.value.length > 0 || !!document.querySelector('video')
-		const enforceVideo = Number(
-			settingsStore.settings?.data?.enforce_video_completion ?? 0
-		)
-		// When the lesson has video AND enforcement is on, suppress dwell so
-		// completion is gated on play-to-end. When enforcement is off, dwell
-		// runs for every lesson type — including YouTube/Plyr — so admins can
-		// set a short dwell to mark video lessons complete without a full
-		// playthrough.
-		if (!shouldStartDwellTimer({ hasVideo: hasVideoListener, enforceVideo })) {
+		if (data.icon == 'icon-youtube' && hasVideoListener) {
 			clearInterval(timerInterval)
-		}
-		if (
-			shouldAttachVideoFallback({ hasVideo: hasVideoListener, enforceVideo })
-		) {
-			document.querySelectorAll('video').forEach((video) => {
-				if (video._lmsErrorAttached) return
-				video._lmsErrorAttached = true
-				const gen = fallbackGeneration
-				video.addEventListener(
-					'error',
-					() => {
-						if (gen !== fallbackGeneration) return
-						fallbackToDwellTimer('html5-video-error')
-					},
-					{ once: true }
-				)
-			})
 		}
 	}
 )
@@ -836,34 +766,6 @@ const getPlyrSource = async () => {
 	await nextTick()
 	if (plyrSources.value.length == 0) {
 		plyrSources.value = await enablePlyr()
-		const enforceVideo = Number(
-			settingsStore.settings?.data?.enforce_video_completion ?? 0
-		)
-		if (
-			shouldAttachVideoFallback({
-				hasVideo: plyrSources.value.length > 0,
-				enforceVideo,
-			})
-		) {
-			plyrSources.value.forEach((player) => {
-				let readyFired = false
-				const gen = fallbackGeneration
-				player.on('ready', () => {
-					readyFired = true
-				})
-				player.on('error', (event) => {
-					if (gen !== fallbackGeneration) return
-					fallbackToDwellTimer(
-						'plyr-error: ' + (event?.detail?.message || 'unknown')
-					)
-				})
-				setTimeout(() => {
-					if (!readyFired && gen === fallbackGeneration) {
-						fallbackToDwellTimer('plyr-no-ready-15s')
-					}
-				}, 15000)
-			})
-		}
 	}
 	updateVideoWatchDuration()
 }
@@ -938,29 +840,11 @@ const updateVideoTime = (video) => {
 	}
 }
 
-let videoFallbackArmed = false
-let fallbackGeneration = 0
-const fallbackToDwellTimer = (reason) => {
-	if (videoFallbackArmed) return
-	videoFallbackArmed = true
-	console.warn('[Lesson] video fallback engaged:', reason)
-	toast.warning(
-		__('Video failed to load — you can still mark this lesson as viewed.')
-	)
-	clearInterval(timerInterval)
-	timer.value = 0
-	startTimer()
-}
-
 const startTimer = () => {
 	if (!lesson.data?.membership) return
-	const dwell = resolveDwellSeconds(
-		settingsStore.settings?.data?.lesson_dwell_time
-	)
-	if (dwell === null) return
 	timerInterval = setInterval(() => {
 		timer.value++
-		if (timer.value >= dwell) {
+		if (timer.value == 30) {
 			clearInterval(timerInterval)
 			markProgress()
 		}
@@ -1002,6 +886,11 @@ const isAdmin = computed(() => {
 	let isInstructor = lesson.data?.instructors?.includes(user.data?.name)
 	return user.data?.is_moderator || isInstructor
 })
+
+const allowEdit = () => {
+	if (window.read_only_mode) return false
+	return isAdmin.value
+}
 
 const allowInstructorContent = () => {
 	if (window.read_only_mode) return false

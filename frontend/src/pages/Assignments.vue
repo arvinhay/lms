@@ -144,6 +144,7 @@ import {
 	Button,
 	createListResource,
 	createResource,
+	Select,
 	ListView,
 	ListHeader,
 	ListHeaderItem,
@@ -158,7 +159,6 @@ import {
 	FormControl,
 	Checkbox,
 } from 'frappe-ui'
-import Select from '@/components/Controls/Select.vue'
 import { computed, inject, onMounted, ref, watch } from 'vue'
 import { Plus } from 'lucide-vue-next'
 import { useRouter, useRoute } from 'vue-router'

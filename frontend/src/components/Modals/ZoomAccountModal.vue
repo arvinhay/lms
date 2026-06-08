@@ -1,68 +1,74 @@
 <template>
-	<SettingsLayout
-		:title="title"
-		:description="
-			__('Connect a Zoom account to schedule and host live classes.')
-		"
-		:show-back="true"
-		@back="emit('updateStep', 'list')"
+	<Dialog
+		v-model="show"
+		:options="{
+			title:
+				accountID === 'new' ? __('New Zoom Account') : __('Edit Zoom Account'),
+			size: 'xl',
+			actions: [
+				{
+					label: __('Save'),
+					variant: 'solid',
+					onClick: ({ close }) => {
+						saveAccount(close)
+					},
+				},
+			],
+		}"
 	>
-		<template #header-actions>
-			<Button variant="solid" @click="save">{{ __('Save') }}</Button>
+		<template #body-content>
+			<div class="mb-4">
+				<Switch
+					size="sm"
+					v-model="account.enabled"
+					:label="__('Enabled')"
+					:description="
+						__('Activate this Zoom account for scheduling meetings.')
+					"
+				/>
+			</div>
+			<div class="grid grid-cols-2 gap-5">
+				<FormControl
+					v-model="account.name"
+					:label="__('Account Name')"
+					type="text"
+					:required="true"
+				/>
+				<FormControl
+					v-model="account.client_id"
+					:label="__('Client ID')"
+					type="text"
+					:required="true"
+				/>
+				<Link
+					v-model="account.member"
+					:label="__('Member')"
+					doctype="Course Evaluator"
+					:onCreate="(value: string, close: () => void) => openSettings('Members', close)"
+					:required="true"
+				/>
+				<FormControl
+					v-model="account.client_secret"
+					:label="__('Client Secret')"
+					type="password"
+					:required="true"
+				/>
+				<FormControl
+					v-model="account.account_id"
+					:label="__('Account ID')"
+					type="text"
+					:required="true"
+				/>
+			</div>
 		</template>
-		<div class="mb-4">
-			<Switch
-				size="sm"
-				v-model="account.enabled"
-				:label="__('Enabled')"
-				:description="__('Activate this Zoom account for scheduling meetings.')"
-			/>
-		</div>
-		<div class="grid grid-cols-2 gap-5">
-			<FormControl
-				v-model="account.name"
-				:label="__('Account Name')"
-				type="text"
-				:required="true"
-			/>
-			<FormControl
-				v-model="account.client_id"
-				:label="__('Client ID')"
-				type="text"
-				:required="true"
-			/>
-			<Link
-				v-model="account.member"
-				:label="__('Member')"
-				doctype="Course Evaluator"
-				:onCreate="
-					(value: string, close: () => void) => openSettings('Members', close)
-				"
-				:required="true"
-			/>
-			<FormControl
-				v-model="account.client_secret"
-				:label="__('Client Secret')"
-				type="password"
-				:required="true"
-			/>
-			<FormControl
-				v-model="account.account_id"
-				:label="__('Account ID')"
-				type="text"
-				:required="true"
-			/>
-		</div>
-	</SettingsLayout>
+	</Dialog>
 </template>
 <script setup lang="ts">
-import { Button, FormControl, call, toast } from 'frappe-ui'
-import Switch from '@/components/Controls/Switch.vue'
-import { computed, inject, reactive, watch } from 'vue'
+import { call, Dialog, FormControl, Switch, toast } from 'frappe-ui'
+import { inject, reactive, watch } from 'vue'
 import { User } from '@/components/Settings/types'
 import { openSettings, cleanError } from '@/utils'
 import Link from '@/components/Controls/Link.vue'
-import SettingsLayout from '@/components/Layouts/SettingsLayout.vue'
 import { useTelemetry } from 'frappe-ui/frappe'
 
 interface ZoomAccount {
@@ -92,7 +98,7 @@ interface ZoomAccounts {
 	}
 }
 
-const emit = defineEmits<{ updateStep: ['list' | 'form'] }>()
+const show = defineModel('show')
 const user = inject<User | null>('$user')
 const zoomAccounts = defineModel<ZoomAccounts>('zoomAccounts')
 const { capture } = useTelemetry()
@@ -110,13 +116,10 @@ const props = defineProps<{
 	accountID: string | null
 }>()
 
-const title = computed(() =>
-	props.accountID === 'new' ? __('New Zoom Account') : __('Edit Zoom Account')
-)
-
 watch(
 	() => props.accountID,
 	(val) => {
+		console.log(props.accountID)
 		if (val === 'new') {
 			account.name = ''
 			account.enabled = false
@@ -135,21 +138,18 @@ watch(
 				account.client_secret = acc.client_secret
 			}
 		}
-	},
-	{ immediate: true }
+	}
 )
 
-const save = () => saveAccount()
-
-const saveAccount = () => {
+const saveAccount = (close: () => void) => {
 	if (props.accountID == 'new') {
-		createAccount()
+		createAccount(close)
 	} else {
-		updateAccount()
+		updateAccount(close)
 	}
 }
 
-const createAccount = () => {
+const createAccount = (close: () => void) => {
 	zoomAccounts.value?.insert.submit(
 		{
 			account_name: account.name,
@@ -159,11 +159,11 @@ const createAccount = () => {
 			onSuccess() {
 				capture('zoom_account_linked')
 				zoomAccounts.value?.reload()
-				emit('updateStep', 'list')
+				close()
 				toast.success(__('Zoom Account created successfully'))
 			},
 			onError(err) {
-				emit('updateStep', 'list')
+				close()
 				toast.error(
 					cleanError(err.messages[0]) || __('Error creating Zoom Account')
 				)
@@ -172,11 +172,11 @@ const createAccount = () => {
 	)
 }
 
-const updateAccount = async () => {
+const updateAccount = async (close: () => void) => {
 	if (props.accountID != account.name) {
 		await renameDoc()
 	}
-	setValue()
+	setValue(close)
 }
 
 const renameDoc = async () => {
@@ -187,7 +187,7 @@ const renameDoc = async () => {
 	})
 }
 
-const setValue = () => {
+const setValue = (close: () => void) => {
 	zoomAccounts.value?.setValue.submit(
 		{
 			...account,
@@ -197,11 +197,11 @@ const setValue = () => {
 		{
 			onSuccess() {
 				zoomAccounts.value?.reload()
-				emit('updateStep', 'list')
+				close()
 				toast.success(__('Zoom Account updated successfully'))
 			},
 			onError(err: any) {
-				emit('updateStep', 'list')
+				close()
 				toast.error(
 					cleanError(err.messages[0]) || __('Error updating Zoom Account')
 				)

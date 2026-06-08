@@ -20,7 +20,6 @@
 				:label="__('Course')"
 				:required="true"
 				:filters="{ published: 1 }"
-				variant="outline"
 				:onCreate="
 					(value, close) => {
 						close()
@@ -35,6 +34,7 @@
 				doctype="Course Evaluator"
 				v-model="evaluator"
 				:label="__('Evaluator')"
+				:onCreate="(value, close) => openSettings('Evaluators', close)"
 				class="mt-4"
 			/>
 		</template>
@@ -45,6 +45,7 @@ import { Dialog, toast } from 'frappe-ui'
 import { ref, inject } from 'vue'
 import Link from '@/components/Controls/Link.vue'
 import { useOnboarding } from 'frappe-ui/frappe'
+import { openSettings } from '@/utils'
 import { useRouter } from 'vue-router'
 
 const show = defineModel()

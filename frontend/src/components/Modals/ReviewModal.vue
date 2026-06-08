@@ -26,38 +26,39 @@
 		</template>
 	</Dialog>
 </template>
-<script setup lang="ts">
+<script setup>
 import { Dialog, FormControl, createResource, toast, Rating } from 'frappe-ui'
 import { reactive } from 'vue'
-import type { Resource } from '@/types/api'
 
-const show = defineModel<boolean>()
-const reviews = defineModel<Resource<unknown> | undefined>('reloadReviews')
-const hasReviewed = defineModel<Resource<unknown> | undefined>('hasReviewed')
+const show = defineModel()
+const reviews = defineModel('reloadReviews')
+const hasReviewed = defineModel('hasReviewed')
 
-const review = reactive<{ review: string; rating: number }>({
+let review = reactive({
 	review: '',
 	rating: 0,
 })
 
-const props = defineProps<{
-	courseName: string
-}>()
+const props = defineProps({
+	courseName: {
+		type: String,
+		required: true,
+	},
+})
 
 const createReview = createResource({
 	url: 'frappe.client.insert',
-	makeParams() {
+	makeParams(values) {
 		return {
 			doc: {
 				doctype: 'LMS Course Review',
 				course: props.courseName,
-				...review,
+				...values,
 			},
 		}
 	},
 })
-
-function submitReview(close: () => void) {
+function submitReview(close) {
 	review.rating = review.rating / 5
 	createReview.submit(review, {
 		validate() {
@@ -66,12 +67,11 @@ function submitReview(close: () => void) {
 			}
 		},
 		onSuccess() {
-			reviews.value?.reload()
-			hasReviewed.value?.reload()
+			reviews.value.reload()
+			hasReviewed.value.reload()
 		},
-		onError(err: { messages?: string[] } | string) {
-			const msg = typeof err === 'string' ? err : err.messages?.[0] ?? 'Error'
-			toast.error(msg)
+		onError(err) {
+			toast.error(err.messages?.[0] || err)
 		},
 	})
 	close()

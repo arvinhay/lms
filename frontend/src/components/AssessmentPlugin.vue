@@ -62,8 +62,7 @@
 	</Dialog>
 </template>
 <script setup>
-import { Dialog } from 'frappe-ui'
-import Switch from '@/components/Controls/Switch.vue'
+import { Dialog, Switch } from 'frappe-ui'
 import { nextTick, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { getLmsRoute } from '@/utils/basePath'

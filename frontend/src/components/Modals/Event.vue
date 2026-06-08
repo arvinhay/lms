@@ -172,12 +172,12 @@ import {
 	Button,
 	FormControl,
 	createResource,
+	Switch,
 	Tabs,
 	Tooltip,
 	Textarea,
 	toast,
 } from 'frappe-ui'
-import Switch from '@/components/Controls/Switch.vue'
 import {
 	User,
 	Calendar,
@@ -253,6 +253,7 @@ const evaluationResource = createResource({
 			status: evaluation.status,
 			rating: evaluation.rating,
 			summary: evaluation.summary,
+			evaluator: props.event.evaluator,
 		}
 	},
 	auto: false,
@@ -312,6 +313,7 @@ const certificateResource = createResource({
 			issue_date: certificate.issue_date,
 			expiry_date: certificate.expiry_date,
 			template: certificate.template,
+			evaluator: props.event.evaluator,
 		}
 	},
 	auto: false,

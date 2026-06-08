@@ -157,7 +157,7 @@
 										{{ row.name.split('(')[0] }}
 									</div>
 								</Tooltip>
-								<Tooltip :text="String(row.value)">
+								<Tooltip :text="row.value">
 									<div class="ms-auto">
 										{{
 											Math.round((row.value / course.data?.enrollments) * 100)
@@ -208,9 +208,7 @@
 						</div>
 						<Select
 							:options="lessonProgressSortingOptions"
-							@update:modelValue="
-								(value: string) => updateLessonProgress(value)
-							"
+							@update:modelValue="(value: string) => updateLessonProgress(value)"
 							:placeholder="__('Sort by')"
 							class="!w-32"
 						/>
@@ -230,7 +228,7 @@
 									{{ progress.title }}
 								</span>
 							</div>
-							<Tooltip :text="String(progress.completion_count)">
+							<Tooltip :text="progress.completion_count">
 								<div>
 									{{
 										Math.ceil(
@@ -275,9 +273,9 @@ import {
 	ListRows,
 	ListRow,
 	ListRowItem,
+	Select,
 	Tooltip,
 } from 'frappe-ui'
-import Select from '@/components/Controls/Select.vue'
 import { computed, inject, ref, watch } from 'vue'
 import type dayjsType from 'dayjs'
 import { Plus, Star } from 'lucide-vue-next'
@@ -289,14 +287,12 @@ import NumberChartGraph from '@/components/NumberChartGraph.vue'
 import ProgressBar from '@/components/ProgressBar.vue'
 import StudentCourseProgress from '@/pages/Courses/StudentCourseProgress.vue'
 
-import type { CourseDetails, Resource } from '@/types/api'
-
 const props = defineProps<{
-	course: Resource<CourseDetails | null>
+	course: any
 }>()
 
 const dayjs = inject<typeof dayjsType>('$dayjs')!
-const showEnrollmentModal = ref<boolean>(false)
+const showEnrollmentModal = ref(false)
 const searchFilter = ref<string | null>(null)
 const showProgressModal = ref(false)
 const currentStudent = ref<any>(null)

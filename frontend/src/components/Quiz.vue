@@ -353,9 +353,10 @@
 					)
 				}}
 			</div>
-			<div class="flex items-center justify-center gap-x-2">
+			<div class="flex gap-x-2">
 				<Button
 					@click="resetQuiz()"
+					class="mt-2"
 					v-if="
 						!quiz.data.max_attempts ||
 						attempts?.data.length < quiz.data.max_attempts
@@ -477,7 +478,7 @@ const activeQuestion = ref(0)
 const currentQuestion = ref('')
 const selectedOptions = ref([0, 0, 0, 0])
 const showAnswers = reactive([])
-const questions = ref([])
+let questions = reactive([])
 const attemptedQuestions = ref([])
 const reviewQuestions = ref([])
 const showSubmissionConfirmation = ref(false)
@@ -526,50 +527,42 @@ const handlePageHide = () => {
 
 const handleBeforeUnload = (event) => {
 	if (activeQuestion.value > 0 && !quizSubmission.data) {
-		recordCurrentAttempt()
+		if (attemptedQuestions.value.length) {
+			switchQuestion(activeQuestion.value)
+		}
 		event.preventDefault()
 		event.returnValue = ''
 	}
 }
 
-// Quiz doc + every question's content in one round trip. The lesson-side
-// quiz used to fetch the quiz, then fire one get_question_details per
-// question as the learner advanced — pulling them all up front lets the
-// activeQuestion watcher read from a local map instead of round-tripping.
-const questionsByName = ref({})
 const quiz = createResource({
-	url: 'lms.lms.utils.get_quiz_with_questions',
-	makeParams() {
-		return { quiz: props.quizName }
+	url: 'frappe.client.get',
+	makeParams(values) {
+		return {
+			doctype: 'LMS Quiz',
+			name: props.quizName,
+		}
 	},
-	// Cache key intentionally distinct from the old frappe.client.get cache
-	// — the response shape changed (now { quiz, questions_by_name }), and a
-	// stale entry would break the transform.
-	cache: ['quiz_with_questions', props.quizName],
+	cache: ['quiz', props.quizName],
 	auto: true,
 	transform(data) {
-		const quizDoc = data?.quiz || {}
-		quizDoc.duration = parseInt(quizDoc.duration)
-		questionsByName.value = data?.questions_by_name || {}
-		return quizDoc
+		data.duration = parseInt(data.duration)
 	},
-	onSuccess() {
+	onSuccess(data) {
 		populateQuestions()
 		setupTimer()
 	},
 })
 
 const populateQuestions = () => {
-	const data = quiz.data
-	const rawQuestions = Array.isArray(data?.questions) ? data.questions : []
-	if (data?.shuffle_questions) {
-		let next = shuffleArray([...rawQuestions])
+	let data = quiz.data
+	if (data.shuffle_questions) {
+		questions = shuffleArray(data.questions)
 		if (data.limit_questions_to) {
-			next = next.slice(0, data.limit_questions_to)
+			questions = questions.slice(0, data.limit_questions_to)
 		}
-		questions.value = next
 	} else {
-		questions.value = rawQuestions
+		questions = data.questions
 	}
 }
 
@@ -663,23 +656,28 @@ const quizSubmission = createResource({
 	},
 })
 
-// Mirror the previous createResource shape ({ data: ... }) so existing
-// template refs (questionDetails.data.option_X, etc.) keep working —
-// we just pull the row from the pre-fetched map instead of an API call.
-const questionDetails = reactive({ data: null })
+const questionDetails = createResource({
+	url: 'lms.lms.utils.get_question_details',
+	makeParams(values) {
+		return {
+			question: currentQuestion.value,
+		}
+	},
+})
 
 watch(activeQuestion, (value) => {
-	if (value <= 0) return
-	// Read from the local `questions` array — that's the shuffled / limited
-	// copy populateQuestions built. `quiz.data.questions` is the raw,
-	// un-shuffled list and can be a different length when limit_questions_to
-	// is set.
-	const row = questions.value[value - 1]
-	if (!row?.question) return
-	currentQuestion.value = row.question
-	questionDetails.data = questionsByName.value[currentQuestion.value] || null
-	if (!quiz.data?.show_answers) {
-		loadSavedAnswers()
+	if (value > 0) {
+		currentQuestion.value = quiz.data.questions[value - 1].question
+		questionDetails.reload(
+			{},
+			{
+				onSuccess() {
+					if (!quiz.data.show_answers) {
+						loadSavedAnswers()
+					}
+				},
+			}
+		)
 	}
 })
 
@@ -693,7 +691,7 @@ const switchQuestion = (questionNumber) => {
 		resetQuestion()
 	}
 
-	if (questionNumber < 1 || questionNumber > questions.value.length) return
+	if (questionNumber < 1 || questionNumber > questions.length) return
 	activeQuestion.value = questionNumber
 }
 
@@ -829,10 +827,7 @@ const nextQuestion = () => {
 }
 
 const resetQuestion = () => {
-	// Compare against the local `questions` array — `quiz.data.questions` is
-	// the raw list and can be longer than what populateQuestions trimmed via
-	// limit_questions_to.
-	if (activeQuestion.value == questions.value.length) return
+	if (activeQuestion.value == quiz.data.questions.length) return
 	activeQuestion.value = activeQuestion.value + 1
 	selectedOptions.value.splice(0, selectedOptions.value.length, ...[0, 0, 0, 0])
 	showAnswers.length = 0
@@ -911,23 +906,17 @@ const markLessonProgress = () => {
 
 const handleSubmitClick = () => {
 	if (!quiz.data.show_answers) {
-		recordCurrentAttempt()
+		if (attemptedQuestions.value.length) {
+			switchQuestion(activeQuestion.value)
+		}
 		showSubmissionConfirmation.value = true
 	} else {
 		submitQuiz()
 	}
 }
 
-const recordCurrentAttempt = () => {
-	if (!getAnswers().length) return
-	if (!attemptedQuestions.value.includes(activeQuestion.value)) {
-		attemptedQuestions.value.push(activeQuestion.value)
-	}
-	addToLocalStorage()
-}
-
 const paginationWindow = computed(() => {
-	const total = questions.value.length
+	const total = questions.length
 	const current = activeQuestion.value
 	const pages = []
 	const size = 5

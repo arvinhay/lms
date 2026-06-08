@@ -19,28 +19,24 @@
 						class="bg-white dark:bg-gray-800 dark:border-gray-700 border-gray-200"
 					>
 						<td class="px-6 py-2">
-							<Select
+							<FormControl
+								type="select"
 								v-model="row.reference_doctype"
 								:options="[
 									{ label: 'Course', value: 'LMS Course' },
 									{ label: 'Batch', value: 'LMS Batch' },
 								]"
-								class="w-full"
 							/>
 						</td>
 						<td class="px-6 py-2">
 							<Link
 								:doctype="row.reference_doctype"
 								v-model="row.reference_name"
-								class="bg-white w-full"
+								class="bg-white"
 							/>
 						</td>
 						<td class="px-6 py-2">
-							<Button
-								variant="ghost"
-								:aria-label="__('Remove row')"
-								@click="removeRow(row)"
-							>
+							<Button variant="ghost" @click="removeRow(row)">
 								<template #icon>
 									<X class="size-4 stroke-1.5" />
 								</template>
@@ -64,10 +60,9 @@
 <script setup lang="ts">
 import type { ApplicableItem, Coupon, Coupons } from './types'
 import { ref, watch } from 'vue'
-import { Button, createListResource } from 'frappe-ui'
+import { Button, createListResource, FormControl } from 'frappe-ui'
 import { Plus, X } from 'lucide-vue-next'
 import Link from '@/components/Controls/Link.vue'
-import Select from '@/components/Controls/Select.vue'
 
 const rows = ref<
 	{
