@@ -303,12 +303,18 @@
 					</div>
 				</div>
 			</div>
+			<!-- Mobile-only backdrop: tap outside the drawer to close it. -->
+			<div
+				v-if="!isOutlineCollapsed"
+				class="fixed inset-x-0 bottom-0 top-[3.25rem] z-20 bg-black/30 md:hidden"
+				@click="toggleOutline()"
+			></div>
 			<div
 				class="rea-course-outline-panel"
 				:class="
 					isOutlineCollapsed
 						? 'fixed end-0 top-[3.25rem] z-20 w-12'
-						: 'h-full min-w-0 overflow-y-auto border-s bg-surface-menu-bar'
+						: 'fixed end-0 top-[3.25rem] bottom-0 z-30 w-[85%] max-w-sm overflow-y-auto border-s bg-surface-menu-bar shadow-xl md:static md:z-auto md:h-full md:w-auto md:min-w-0 md:max-w-none md:shadow-none'
 				"
 			>
 				<div
@@ -483,8 +489,13 @@ const props = defineProps({
 onMounted(() => {
 	startTimer()
 	sidebarStore.isSidebarCollapsed = true
-	isOutlineCollapsed.value =
+	// On mobile the outline is a slide-in overlay; default it closed so it
+	// doesn't cover the lesson on load. The stored preference only drives the
+	// desktop side-by-side layout.
+	const storedCollapsed =
 		JSON.parse(localStorage.getItem('lms:lesson-outline-collapsed')) || false
+	isOutlineCollapsed.value =
+		window.innerWidth < 768 ? true : storedCollapsed
 	document.addEventListener('fullscreenchange', attachFullscreenEvent)
 	socket.on('update_lesson_progress', (data) => {
 		if (data.course === props.courseName) {
