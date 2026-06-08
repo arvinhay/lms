@@ -1,7 +1,7 @@
 <template>
 	<div class="">
-		<div class="grid md:grid-cols-[75%,25%] h-screen">
-			<div class="border-e">
+		<div class="grid md:grid-cols-[75%,25%] md:h-screen">
+			<div class="md:border-e">
 				<header
 					class="sticky top-0 z-10 flex flex-col md:flex-row md:items-center justify-between border-b overflow-hidden bg-surface-white px-3 py-2.5 sm:px-5"
 				>
@@ -23,8 +23,8 @@
 					</div>
 				</header>
 				<div class="py-5">
-					<div class="w-5/6 mx-auto space-y-5">
-						<div class="grid grid-cols-2 gap-5">
+					<div class="w-11/12 sm:w-5/6 mx-auto space-y-5">
+						<div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
 							<FormControl
 								v-model="lesson.title"
 								:label="__('Title')"
@@ -65,7 +65,7 @@
 						</div>
 					</div>
 					<div class="border-t mt-4">
-						<div class="w-5/6 mx-auto pt-4">
+						<div class="w-11/12 sm:w-5/6 mx-auto pt-4">
 							<div
 								class="flex justify-between cursor-pointer"
 								@click="
@@ -93,7 +93,7 @@
 						</div>
 					</div>
 					<div class="border-t mt-4">
-						<div class="w-5/6 mx-auto pt-4">
+						<div class="w-11/12 sm:w-5/6 mx-auto pt-4">
 							<label class="block font-medium text-ink-gray-5 mb-1">
 								{{ __('Content') }}
 							</label>
@@ -180,7 +180,7 @@
 					</div>
 				</div>
 			</div>
-			<div class="">
+			<div class="hidden md:block">
 				<div class="sticky top-0 p-5">
 					<LessonHelp />
 				</div>
