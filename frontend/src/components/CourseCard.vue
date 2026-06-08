@@ -71,7 +71,7 @@
 					<Tooltip :text="__('Average Rating')">
 						<span class="flex items-center">
 							<Star class="h-4 w-4 stroke-1.5 me-1" />
-							{{ course.rating }}
+							{{ formatRating(course.rating) }}
 						</span>
 					</Tooltip>
 				</div>
