@@ -133,7 +133,7 @@ const dropzoneLabel = computed(() =>
 )
 
 const uploadLimitLabel = computed(() =>
-	__('Maximum file size: {0} MB', [MAX_COURSE_UPLOAD_SIZE_MB])
+	__('Maximum file size: {0} MB').format(MAX_COURSE_UPLOAD_SIZE_MB)
 )
 
 const uploadProgress = computed(() => {
@@ -162,9 +162,9 @@ const validateFile = (file: File) => {
 
 	if (file.size > MAX_COURSE_UPLOAD_SIZE_BYTES) {
 		toast.error(
-			__('The selected file is larger than the {0} MB upload limit.', [
-				MAX_COURSE_UPLOAD_SIZE_MB,
-			])
+			__('The selected file is larger than the {0} MB upload limit.').format(
+				MAX_COURSE_UPLOAD_SIZE_MB
+			)
 		)
 		return false
 	}

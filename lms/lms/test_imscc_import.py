@@ -3,6 +3,7 @@ from io import BytesIO
 from unittest import TestCase
 
 from lms.lms.imscc_import import (
+	_add_unreferenced_wiki_pages,
 	_build_external_resource_body,
 	_clean_html,
 	_get_modules_from_manifest,
@@ -133,6 +134,41 @@ class TestIMSCCImport(TestCase):
 			[item["identifierref"] for item in modules[1]["items"]],
 			["page-three"],
 		)
+
+	def test_front_page_and_stray_wiki_pages_are_not_dropped(self):
+		front_html = (
+			'<html><head><meta name="front_page" content="true"></head>'
+			"<body>Welcome</body></html>"
+		)
+		buffer = BytesIO()
+		with zipfile.ZipFile(buffer, "w") as archive:
+			archive.writestr("wiki_content/home.html", front_html)
+			archive.writestr("wiki_content/stray.html", "<html><body>Stray</body></html>")
+
+		buffer.seek(0)
+		with zipfile.ZipFile(buffer) as archive:
+			modules = _add_unreferenced_wiki_pages(
+				archive,
+				{
+					"page-one": {"type": "webcontent", "href": "wiki_content/page-one.html"},
+					"home": {"type": "webcontent", "href": "wiki_content/home.html"},
+					"stray": {"type": "webcontent", "href": "wiki_content/stray.html"},
+				},
+				[
+					{
+						"title": "Module One",
+						"position": 1,
+						"items": [{"identifierref": "page-one"}],
+					}
+				],
+			)
+
+		titles = [module["title"] for module in modules]
+		# Front page surfaces first as "Overview"; stray page is appended.
+		self.assertEqual(titles[0], "Overview")
+		self.assertEqual(titles[-1], "Additional Pages")
+		self.assertEqual(modules[0]["items"][0]["identifierref"], "home")
+		self.assertEqual(modules[-1]["items"][0]["identifierref"], "stray")
 
 	def test_external_learning_tools_keep_their_embed(self):
 		body = _build_external_resource_body(

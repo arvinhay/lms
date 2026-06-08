@@ -219,14 +219,79 @@ def _get_course_image(zip_file: zipfile.ZipFile, resources: dict, asset_map: dic
 
 def _get_modules(zip_file: zipfile.ZipFile, resources: dict) -> list[dict]:
 	modules = _get_modules_from_canvas_meta(zip_file)
-	if modules:
-		return modules
+	if not modules:
+		modules = _get_modules_from_manifest(zip_file, resources)
 
-	modules = _get_modules_from_manifest(zip_file, resources)
 	if modules:
-		return modules
+		return _add_unreferenced_wiki_pages(zip_file, resources, modules)
 
 	return _get_modules_from_wiki_resources(resources)
+
+
+def _add_unreferenced_wiki_pages(
+	zip_file: zipfile.ZipFile, resources: dict, modules: list[dict]
+) -> list[dict]:
+	"""Make sure wiki pages that no module points at are still imported.
+
+	Canvas keeps the course front page (``<meta name="front_page" content="true">``)
+	and the occasional stray page outside the module structure, so the
+	module-based importers never see them and the content is lost. Collect those
+	orphans, surface the front page as an "Overview" chapter at the very top, and
+	append any other stray pages so nothing disappears on import.
+	"""
+	used_refs = {
+		item.get("identifierref")
+		for module in modules
+		for item in module["items"]
+	}
+
+	front_items: list[dict] = []
+	extra_items: list[dict] = []
+	for identifier, resource in resources.items():
+		if identifier in used_refs:
+			continue
+		href = resource.get("href")
+		if (
+			resource.get("type") != "webcontent"
+			or not href
+			or not href.startswith("wiki_content/")
+			or not href.lower().endswith((".html", ".htm"))
+		):
+			continue
+
+		row = {
+			"title": _title_from_href(href),
+			"identifierref": identifier,
+			"content_type": "WikiPage",
+			"position": 1,
+		}
+		(front_items if _is_front_page(zip_file, href) else extra_items).append(row)
+
+	if front_items:
+		modules.insert(0, {"title": _("Overview"), "position": 0, "items": front_items})
+	if extra_items:
+		modules.append(
+			{"title": _("Additional Pages"), "position": len(modules) + 1, "items": extra_items}
+		)
+
+	for position, module in enumerate(modules, start=1):
+		module["position"] = position
+
+	return modules
+
+
+def _is_front_page(zip_file: zipfile.ZipFile, href: str) -> bool:
+	try:
+		page = _read_text(zip_file, href)
+	except (KeyError, OSError):
+		return False
+	return bool(
+		re.search(
+			r'<meta\s+name=["\']front_page["\']\s+content=["\']true["\']',
+			page,
+			flags=re.IGNORECASE,
+		)
+	)
 
 
 def _get_modules_from_canvas_meta(zip_file: zipfile.ZipFile) -> list[dict]:

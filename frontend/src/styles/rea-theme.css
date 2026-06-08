@@ -21,7 +21,8 @@
 	color: var(--lms-document-text);
 }
 
-.lms-html-document img,
+/* Stretchy embeds (video / iframe / object) are capped and centred. Images are
+   left to their authored alignment — only their max size is constrained. */
 .lms-html-document video,
 .lms-html-document iframe,
 .lms-html-document embed,
@@ -32,7 +33,11 @@
 	margin-right: auto;
 }
 
-.lms-html-document img,
+.lms-html-document img {
+	max-width: 100%;
+	height: auto;
+}
+
 .lms-html-document video {
 	height: auto;
 }
@@ -59,10 +64,14 @@
 	border-radius: 6px;
 }
 
-/* Video-style embeds (YouTube / uploaded video) scale by aspect ratio so
-   they look right on tablet and desktop rather than using a fixed height. */
-.lms-embed-video iframe,
-.lms-embed-video video {
+/* Uploaded <video> keeps its natural aspect ratio (no forced letterboxing). */
+.lms-embed video {
+	height: auto;
+}
+
+/* Only iframe video embeds (e.g. YouTube), which have no intrinsic size,
+   get a 16:9 ratio so they scale cleanly on tablet and desktop. */
+.lms-embed-video iframe {
 	height: auto;
 	aspect-ratio: 16 / 9;
 }
@@ -278,13 +287,13 @@
 :root[data-lms-theme='rea'] .rea-quiz-question-card,
 :root[data-lms-theme='rea'] .rea-quiz-review-card,
 :root[data-lms-theme='rea'] .rea-quiz-summary-card {
-	background-color: rgba(255, 255, 255, 0.42);
+	background-color: #ffffff !important;
 	border-color: var(--rea-border) !important;
 }
 
 :root[data-lms-theme='rea'] .rea-quiz-option {
-	background-color: rgba(255, 255, 255, 0.72) !important;
-	border: 1px solid transparent;
+	background-color: #ffffff !important;
+	border: 1px solid var(--rea-border);
 }
 
 :root[data-lms-theme='rea'] .rea-quiz-option:hover,
