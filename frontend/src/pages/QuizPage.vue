@@ -5,11 +5,13 @@
 	>
 		<Breadcrumbs :items="breadcrumbs" />
 	</header>
-	<div
-		class="md:w-7/12 md:mx-auto mx-4 py-10"
-		:class="{ 'pt-4 md:w-full': fromLesson }"
-	>
-		<Quiz :quizName="quizID" />
+	<div class="bg-surface-white min-h-screen">
+		<div
+			class="md:w-7/12 md:mx-auto mx-4 py-10"
+			:class="{ 'pt-4 md:w-full': fromLesson }"
+		>
+			<Quiz :quizName="quizID" />
+		</div>
 	</div>
 </template>
 <script setup>
