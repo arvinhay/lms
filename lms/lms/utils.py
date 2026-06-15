@@ -533,7 +533,7 @@ def notify_mentions_via_email(doc: Document, topic: dict):
 	outgoing_email_account = frappe.get_cached_value(
 		"Email Account", {"default_outgoing": 1, "enable_outgoing": 1}, "name"
 	)
-	if not outgoing_email_account or not frappe.conf.get("mail_login"):
+	if not outgoing_email_account and not frappe.conf.get("mail_login"):
 		return
 
 	mentions = extract_mentions(doc.reply)

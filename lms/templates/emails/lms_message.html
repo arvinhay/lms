@@ -1,13 +1,3 @@
-<!-- <div style="border: 1px solid #DBDBDB; padding-bottom: 10px;">
-	<h6 style="padding-left: 10px;">{{ author }}</h6>
-	<hr style="border: 1px solid #DBDBDB;">
-	<div style="padding: 10px;">
-		{{ message }}
-		<div class="small text-muted text-right">{{ creation }}</div>
-	</div>
-</div> -->
-
-<p> {{ message }} </p>
-<p class="text-right">{{ _("By") }} {{author}}</p>
-<div class="small text-muted text-right">{{ creation }}</div>
-<a href="courses/course?course={{course}}">{{ _("Open Course") }}</a>
+<div class="rea-email-panel">{{ message }}</div>
+<p><strong>{{ _("Posted by:") }}</strong> {{ author }}<br>{{ creation }}</p>
+<p><a class="rea-email-button" href="{{ get_lms_route('courses/' ~ course) }}">{{ _("Open course") }}</a></p>

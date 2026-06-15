@@ -34,6 +34,9 @@ web_include_css = "lms.bundle.css"
 # web_include_css = "/assets/lms/css/lms.css"
 web_include_js = []
 
+# Applied to every outgoing Frappe email and inlined before delivery.
+email_css = ["/assets/lms/css/rea_email.css"]
+
 # include custom scss in every website theme (without file extension ".scss")
 # website_theme_scss = "lms/public/scss/website"
 

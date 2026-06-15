@@ -1,8 +1,2 @@
-<div>
-  <p>{{ _("Dear") }} {{ member_name }},</p>
-  <br>
-  <p>{{ _("Your request to join us as a mentor for the course") }} {{ course }} {{ _("has been") }} {{ status }}.</p>
-  <br>
-  <p>{{ _("Thanks and Regards") }},</p>
-  <p>{{ _("Team School") }}.</p>
-</div>
+<p>{{ _("Hello {0},").format(member_name) }}</p>
+<p>{{ _("Your request to mentor {0} has been {1}.").format(frappe.bold(course), frappe.bold(status)) }}</p>

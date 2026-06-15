@@ -1,0 +1,153 @@
+.rea-email {
+	background-color: #fbf3e2 !important;
+	color: #1f2933 !important;
+}
+
+.rea-email .body-content {
+	padding: 40px 20px !important;
+}
+
+.rea-email .email-container {
+	width: 100% !important;
+	max-width: 620px !important;
+	padding: 0 !important;
+	overflow: hidden !important;
+	border: 1px solid #f0dfc3 !important;
+	border-radius: 8px !important;
+	background-color: #ffffff !important;
+	box-shadow: 0 4px 16px rgba(31, 41, 51, 0.06) !important;
+}
+
+.rea-email-accent {
+	height: 6px !important;
+	background-color: #167b8d !important;
+	font-size: 0 !important;
+	line-height: 0 !important;
+}
+
+.rea-email-brand {
+	padding: 24px 32px 18px !important;
+	border-bottom: 1px solid #f0dfc3 !important;
+}
+
+.rea-email-brand-table {
+	width: 100% !important;
+}
+
+.rea-email-brand-logo {
+	width: 48px !important;
+	height: 48px !important;
+	margin: 0 14px 0 0 !important;
+	object-fit: contain !important;
+}
+
+.rea-email-brand-name {
+	color: #1f2933 !important;
+	font-size: 17px !important;
+	font-weight: 600 !important;
+	line-height: 1.25 !important;
+}
+
+.rea-email-brand-product {
+	margin-top: 2px !important;
+	color: #6b7280 !important;
+	font-size: 13px !important;
+	line-height: 1.4 !important;
+}
+
+.rea-email-main {
+	padding: 26px 32px 8px !important;
+}
+
+.rea-email .email-header {
+	margin: 0 0 22px !important;
+}
+
+.rea-email .email-header-title {
+	margin: 0 !important;
+	color: #1f2933 !important;
+	font-size: 22px !important;
+	font-weight: 600 !important;
+	line-height: 1.3 !important;
+}
+
+.rea-email .email-body,
+.rea-email .email-body td {
+	color: #1f2933 !important;
+	font-size: 15px !important;
+	line-height: 1.6 !important;
+}
+
+.rea-email .email-body p {
+	margin: 0 0 14px !important;
+}
+
+.rea-email .email-body h1,
+.rea-email .email-body h2,
+.rea-email .email-body h3,
+.rea-email .email-body h4 {
+	margin: 0 0 14px !important;
+	color: #1f2933 !important;
+	line-height: 1.3 !important;
+}
+
+.rea-email .email-body a {
+	color: #167b8d !important;
+}
+
+.rea-email .email-body .btn,
+.rea-email .email-body .btn-primary,
+.rea-email .rea-email-button {
+	display: inline-block !important;
+	padding: 10px 18px !important;
+	border: 1px solid #167b8d !important;
+	border-radius: 6px !important;
+	background-color: #167b8d !important;
+	color: #ffffff !important;
+	font-size: 14px !important;
+	font-weight: 600 !important;
+	line-height: 20px !important;
+	text-decoration: none !important;
+}
+
+.rea-email .gray-container,
+.rea-email .rea-email-panel {
+	padding: 16px !important;
+	border: 1px solid #b7dce3 !important;
+	border-radius: 6px !important;
+	background-color: #e7f4f6 !important;
+}
+
+.rea-email .email-footer {
+	padding: 0 32px 24px !important;
+}
+
+.rea-email .email-footer-container {
+	margin-top: 20px !important;
+	padding-top: 18px !important;
+	border-top: 1px solid #f0dfc3 !important;
+	color: #6b7280 !important;
+	font-size: 12px !important;
+	line-height: 1.6 !important;
+}
+
+.rea-email .email-footer-container a {
+	color: #167b8d !important;
+}
+
+@media only screen and (max-width: 700px) {
+	.rea-email .body-content {
+		padding: 18px 10px !important;
+	}
+
+	.rea-email .rea-email-brand,
+	.rea-email .rea-email-main {
+		padding-left: 20px !important;
+		padding-right: 20px !important;
+	}
+
+	.rea-email .email-footer {
+		padding-left: 20px !important;
+		padding-right: 20px !important;
+	}
+}

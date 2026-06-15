@@ -1,7 +1,9 @@
-<p> {{ _("Hey {0}").format(member_name) }} </p>
-<br>
-<p> {{ _('Your evaluation for the course {0} has been scheduled on {1} at {2} ({3} time).').format(course, date, start_time, timezone) }}</p>
-<br>
-<p> {{ _("Your evaluator is {0}").format(evaluator) }} </p>
-<br>
-<p> {{ _("Please prepare well and be on time for the evaluations.") }} </p>
+<p>{{ _("Hello {0},").format(member_name) }}</p>
+<p>{{ _("Your course evaluation has been scheduled.") }}</p>
+<div class="rea-email-panel">
+	<p><strong>{{ _("Course:") }}</strong> {{ course }}</p>
+	<p><strong>{{ _("Date:") }}</strong> {{ date }}</p>
+	<p><strong>{{ _("Time:") }}</strong> {{ start_time }} ({{ timezone }})</p>
+	<p><strong>{{ _("Evaluator:") }}</strong> {{ evaluator }}</p>
+</div>
+<p>{{ _("Please arrive on time and contact the REA team if you need assistance.") }}</p>

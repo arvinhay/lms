@@ -1,11 +1,3 @@
-<p>
-    {{ _("{0} mentioned you in a comment in your batch.").format(sender) }}
-</p>
-<p>
-    <blockquote>
-        {{ content | markdown }}
-    </blockquote>
-</p>
-<div class="more-info">
-	<a href="{{ link }}">{{ _("Check Discussion") }}</a>
-</div>
+<p>{{ _("{0} mentioned you in an REA LMS discussion.").format(sender) }}</p>
+<div class="rea-email-panel">{{ content | markdown }}</div>
+<p><a class="rea-email-button" href="{{ link }}">{{ _("View discussion") }}</a></p>

@@ -1,21 +1,10 @@
+<p>{{ _("Hello {0},").format(member_name) }}</p>
 <p>
-    {{ _("Dear ") }} {{ member_name }},
+	{{ _("Congratulations on completing {0}. Your certificate is ready.").format(frappe.bold(course_title)) }}
 </p>
-<br>
 <p>
-    {{ _("I am delighted to inform you that you have successfully earned your certification for the {0} course. Congratulations!").format(frappe.bold(course_title)) }}
+	<a class="rea-email-button" href="/api/method/frappe.utils.print_format.download_pdf?doctype=LMS+Certificate&name={{ name }}&format={{ template | urlencode }}">
+		{{ _("Download certificate") }}
+	</a>
 </p>
-<br>
-<p>
-    {{ _("With this certification, you can now showcase your updated skills and share your achievement with your colleagues and on LinkedIn. To access your certificate, please click on the link provided below. Make sure you are logged in to the portal.") }}
-</p>
-<br>
-<a href="/api/method/frappe.utils.print_format.download_pdf?doctype=LMS+Certificate&name={{name}}&format={{template | urlencode }}">{{ _("Certificate Link") }}</a>
-<br>
-<p>
-    {{ _("Once again, congratulations on this significant accomplishment.")}}
-</p>
-<br>
-<p>
-    {{ _("Best Regards") }}
-</p>
+<p>{{ _("You may need to sign in to REA LMS before downloading it.") }}</p>

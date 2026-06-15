@@ -1,0 +1,13 @@
+<p>{{ _("Hello {0},").format(first_name | e) }}</p>
+<p>
+	{{ _("An REA LMS account has been created for you. Use the button below to set your password and complete your registration.") }}
+</p>
+<p><strong>{{ _("Login email:") }}</strong> {{ user }}</p>
+<p style="margin: 20px 0;">
+	<a href="{{ link }}" class="btn btn-primary" rel="nofollow">{{ _("Set up my account") }}</a>
+</p>
+<p>
+	{{ _("If the button does not work, copy and paste this address into your browser:") }}<br>
+	<a href="{{ link }}">{{ link }}</a>
+</p>
+<p>{{ _("This registration link is intended only for you.") }}</p>

@@ -46,6 +46,7 @@ class LMSCertificate(Document):
 			email_template = get_email_template(custom_template, args)
 			subject = email_template.get("subject")
 			content = email_template.get("message")
+
 		frappe.sendmail(
 			recipients=self.member,
 			subject=subject,

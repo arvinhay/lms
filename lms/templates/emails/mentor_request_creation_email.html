@@ -1,9 +1,4 @@
-<div>
-  <p>{{ _("Dear") }} {{ member_name }},</p>
-  <br>
-  <p>{{ _("You've applied to become a mentor for this course. Your request is currently under review.") }}</p>
-  <p>{{ _("If you are not any more interested to mentor the course") }} {{ course }}, {{ _("you can") }} <a href="{{ course_url }}">{{ _("cancel your application") }}</a>.</p>
-  <br>
-  <p>{{ _("Thanks and Regards") }},</p>
-  <p>{{ _("Team School") }}.</p>
-</div>
+<p>{{ _("Hello {0},").format(member_name) }}</p>
+<p>{{ _("Your request to mentor {0} has been received and is under review.").format(frappe.bold(course)) }}</p>
+<p>{{ _("You can review or cancel the request from the course page.") }}</p>
+<p><a class="rea-email-button" href="{{ course_url }}">{{ _("View course") }}</a></p>
