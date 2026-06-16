@@ -25,7 +25,9 @@ from frappe.utils import (
 	get_datetime,
 	getdate,
 	now,
+	validate_email_address,
 )
+from frappe.utils.html_utils import sanitize_html
 from frappe.utils.response import Response
 from pypika import functions as fn
 
@@ -46,6 +48,10 @@ from lms.lms.utils import (
 	has_lms_role,
 	has_moderator_role,
 )
+
+CONTACT_US_RECIPIENTS = ("contactus@refugee-education.org.au", "arvin@refugee-education.org.au")
+CONTACT_US_MAX_SUBJECT_LENGTH = 140
+CONTACT_US_MAX_MESSAGE_LENGTH = 10000
 
 
 @frappe.whitelist()
@@ -1430,6 +1436,94 @@ def get_lms_settings():
 		settings[field] = frappe.get_cached_value("LMS Settings", None, field)
 
 	return settings
+
+
+@frappe.whitelist()
+def send_contact_us_enquiry(subject: str, message: str, page_url: str | None = None):
+	if frappe.session.user == "Guest":
+		frappe.throw(_("Please log in to send an enquiry."), frappe.PermissionError)
+
+	subject = frappe.utils.strip_html_tags(frappe.as_unicode(subject or "")).strip()
+	raw_message = frappe.as_unicode(message or "").strip()
+	plain_message = frappe.utils.strip_html_tags(raw_message).strip()
+
+	if not subject:
+		frappe.throw(_("Please enter a subject."))
+	if not plain_message:
+		frappe.throw(_("Please enter a message."))
+
+	subject = subject[:CONTACT_US_MAX_SUBJECT_LENGTH]
+	safe_message = sanitize_html(raw_message[:CONTACT_US_MAX_MESSAGE_LENGTH], always_sanitize=True)
+
+	user = _get_contact_us_user_context()
+	content = frappe.render_template(
+		"lms/templates/emails/contact_us_enquiry.html",
+		{
+			"subject": subject,
+			"message": safe_message,
+			"user": user,
+			"page_url": _get_safe_contact_us_page_url(page_url),
+			"submitted_at": frappe.utils.format_datetime(now()),
+		},
+	)
+
+	frappe.sendmail(
+		recipients=_get_contact_us_recipients(),
+		reply_to=user.email,
+		subject=_("REA LMS enquiry: {0}").format(subject),
+		content=content,
+		header=[_("New Contact Us enquiry"), "blue"],
+	)
+
+	return {"message": _("Your enquiry has been sent.")}
+
+
+def _get_contact_us_user_context():
+	user = frappe.db.get_value(
+		"User",
+		frappe.session.user,
+		["name", "email", "full_name", "username", "user_type"],
+		as_dict=True,
+	)
+	username = user.username or user.name
+	roles = sorted(role for role in frappe.get_roles(user.name) if role not in {"All", "Guest"})
+
+	user.roles = ", ".join(roles) if roles else _("No assigned roles")
+	user.profile_url = frappe.utils.get_url(get_lms_route(f"user/{username}"))
+	return user
+
+
+def _get_contact_us_recipients():
+	configured_recipients = frappe.conf.get("rea_contact_us_recipients")
+	if isinstance(configured_recipients, str):
+		raw_recipients = re.split(r"[,;\n]", configured_recipients)
+	elif isinstance(configured_recipients, (list, tuple, set)):
+		raw_recipients = configured_recipients
+	else:
+		raw_recipients = CONTACT_US_RECIPIENTS
+
+	recipients = []
+	for email in raw_recipients:
+		email = frappe.as_unicode(email).strip()
+		if not email:
+			continue
+		try:
+			validate_email_address(email, True)
+			recipients.append(email)
+		except Exception:
+			frappe.log_error(title="Invalid contact us recipient", message=email)
+
+	return list(dict.fromkeys(recipients)) or list(CONTACT_US_RECIPIENTS)
+
+
+def _get_safe_contact_us_page_url(page_url: str | None = None):
+	page_url = frappe.as_unicode(page_url or "").strip()
+	site_url = frappe.utils.get_url()
+	if not page_url:
+		return site_url
+	if page_url.startswith(site_url) or page_url.startswith("/"):
+		return page_url
+	return site_url
 
 
 @frappe.whitelist()

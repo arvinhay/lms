@@ -127,3 +127,4 @@ lms.patches.v2_0.give_event_permission #10-03-2026
 lms.patches.v2_0.delete_duplicate_course_progress #13-05-2026
 lms.patches.v2_0.restore_system_manager_perms #13-05-2026
 lms.patches.setup_rea_email_branding
+lms.patches.setup_rea_contact_us_email
