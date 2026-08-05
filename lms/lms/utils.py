@@ -1928,6 +1928,35 @@ def create_discussion_topic(doctype: str, docname: str) -> str:
 	return doc
 
 
+@frappe.whitelist(methods=["POST"])
+def delete_discussion_topic(topic: str):
+	"""Delete a discussion and its replies for LMS administrators."""
+	roles = set(frappe.get_roles())
+	if not roles.intersection({"System Manager", "Moderator"}):
+		frappe.throw(
+			_("Only an LMS administrator can delete an entire discussion."),
+			frappe.PermissionError,
+		)
+
+	topic_doc = frappe.get_doc("Discussion Topic", topic)
+	if not can_access_topic(topic_doc.reference_doctype, topic_doc.reference_docname):
+		frappe.throw(
+			_("You are not authorized to manage this discussion."),
+			frappe.PermissionError,
+		)
+
+	replies = frappe.get_all("Discussion Reply", {"topic": topic}, pluck="name")
+	for reply in replies:
+		frappe.delete_doc("Discussion Reply", reply, ignore_permissions=True)
+
+	frappe.delete_doc("Discussion Topic", topic, ignore_permissions=True)
+	frappe.publish_realtime(
+		"delete_discussion_topic",
+		{"topic": topic},
+		after_commit=True,
+	)
+
+
 @frappe.whitelist()
 def get_discussion_replies(topic: str):
 	topic_details = frappe.db.get_value(

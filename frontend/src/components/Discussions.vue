@@ -41,6 +41,7 @@
 			<DiscussionReplies
 				:topic="currentTopic"
 				v-model:showTopics="showTopics"
+				@topic-deleted="handleTopicDeleted"
 			/>
 		</div>
 	</div>
@@ -155,6 +156,12 @@ const showReplies = (topic) => {
 
 const openTopicModal = () => {
 	showTopicModal.value = true
+}
+
+const handleTopicDeleted = () => {
+	showTopics.value = true
+	currentTopic.value = null
+	topics.reload()
 }
 
 onUnmounted(() => {

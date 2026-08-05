@@ -1,14 +1,33 @@
 <template>
 	<div class="mt-6">
-		<div v-if="!singleThread" class="flex items-center mb-5">
-			<Button variant="outline" @click="showTopics = true">
-				<template #icon>
-					<ChevronLeft class="w-5 h-5 stroke-1.5 text-ink-gray-7" />
+		<div v-if="!singleThread" class="flex items-center justify-between mb-5">
+			<div class="flex min-w-0 items-center">
+				<Button variant="outline" @click="showTopics = true">
+					<template #icon>
+						<ChevronLeft class="w-5 h-5 stroke-1.5 text-ink-gray-7" />
+					</template>
+				</Button>
+				<span class="truncate text-lg font-semibold ms-2 text-ink-gray-9">
+					{{ topic.title }}
+				</span>
+			</div>
+			<Dropdown
+				v-if="canAdministerDiscussions && !readOnlyMode"
+				:options="[
+					{
+						label: __('Delete question'),
+						onClick: confirmDeleteTopic,
+					},
+				]"
+			>
+				<template v-slot="{ open }">
+					<Button variant="ghost" :aria-label="__('Question actions')">
+						<template #icon>
+							<MoreHorizontal class="w-4 h-4 stroke-1.5" />
+						</template>
+					</Button>
 				</template>
-			</Button>
-			<span class="text-lg font-semibold ms-2 text-ink-gray-9">
-				{{ topic.title }}
-			</span>
+			</Dropdown>
 		</div>
 
 		<div v-for="(reply, index) in replies.data">
@@ -27,9 +46,7 @@
 						</span>
 					</div>
 					<Dropdown
-						v-if="
-							user.data.name == reply.owner && !reply.editable && !readOnlyMode
-						"
+						v-if="canManageReply(reply) && !reply.editable && !readOnlyMode"
 						:options="[
 							{
 								label: __('Edit'),
@@ -104,7 +121,14 @@ import {
 import { timeAgo } from '@/utils'
 import UserAvatar from '@/components/UserAvatar.vue'
 import { ChevronLeft, MoreHorizontal } from 'lucide-vue-next'
-import { ref, inject, onMounted, onUnmounted } from 'vue'
+import {
+	computed,
+	getCurrentInstance,
+	ref,
+	inject,
+	onMounted,
+	onUnmounted,
+} from 'vue'
 import { useTelemetry } from 'frappe-ui/frappe'
 
 const showTopics = defineModel('showTopics')
@@ -116,6 +140,16 @@ const mentionUsers = ref([])
 const renderEditor = ref(false)
 const readOnlyMode = window.read_only_mode
 const { capture } = useTelemetry()
+const emit = defineEmits(['topicDeleted'])
+const app = getCurrentInstance()
+const { $dialog } = app.appContext.config.globalProperties
+
+const canAdministerDiscussions = computed(
+	() => user.data?.is_system_manager || user.data?.is_moderator
+)
+
+const canManageReply = (reply) =>
+	user.data?.name == reply.owner || canAdministerDiscussions.value
 
 const props = defineProps({
 	topic: {
@@ -224,6 +258,40 @@ const deleteReply = (reply) => {
 	})
 		.then(() => {
 			replies.reload()
+		})
+		.catch((err) => {
+			toast.error(err.messages?.[0] || err)
+			console.error(err)
+		})
+}
+
+const confirmDeleteTopic = () => {
+	$dialog({
+		title: __('Delete this question?'),
+		message: __(
+			'This will permanently delete the question and every reply in it.'
+		),
+		actions: [
+			{
+				label: __('Delete'),
+				theme: 'red',
+				variant: 'solid',
+				onClick({ close }) {
+					deleteTopic(close)
+				},
+			},
+		],
+	})
+}
+
+const deleteTopic = (close) => {
+	call('lms.lms.utils.delete_discussion_topic', {
+		topic: props.topic.name,
+	})
+		.then(() => {
+			close()
+			toast.success(__('Question deleted'))
+			emit('topicDeleted')
 		})
 		.catch((err) => {
 			toast.error(err.messages?.[0] || err)
