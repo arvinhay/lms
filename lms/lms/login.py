@@ -33,13 +33,19 @@ def send_login_link(email: str):
 		app_name = (
 			frappe.get_website_settings("app_name") or frappe.get_system_settings("app_name") or _("Frappe")
 		)
-		subject = _("Login To {0}").format(app_name)
+		first_name = frappe.db.get_value("User", user, "first_name") or _("there")
+		subject = _("Your secure sign-in link for {0}").format(app_name)
 
 		frappe.sendmail(
 			subject=subject,
 			recipients=recipient,
-			template="login_with_email_link",
-			args={"link": link, "minutes": expiry, "app_name": app_name},
+			template="rea_login_with_email_link",
+			args={
+				"first_name": first_name,
+				"link": link,
+				"minutes": expiry,
+				"app_name": app_name,
+			},
 			now=True,
 		)
 	except frappe.OutgoingEmailError:
