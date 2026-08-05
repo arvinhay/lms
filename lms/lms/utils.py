@@ -589,6 +589,17 @@ def notify_rea_staff_for_discussion_reply(doc: Document, topic: dict):
 		return
 
 	context = get_discussion_notification_context(doc, topic)
+	frappe.enqueue(
+		"lms.lms.utils.send_rea_discussion_notification",
+		queue="short",
+		enqueue_after_commit=True,
+		recipients=recipients,
+		context=context,
+	)
+
+
+def send_rea_discussion_notification(recipients: list[str], context: dict):
+	"""Send promptly without making the learner wait for SMTP during posting."""
 	frappe.sendmail(
 		recipients=recipients,
 		subject=context["subject"],
@@ -596,6 +607,7 @@ def notify_rea_staff_for_discussion_reply(doc: Document, topic: dict):
 		args=context,
 		header=["New LMS discussion comment", "blue"],
 		retry=3,
+		now=True,
 	)
 
 
