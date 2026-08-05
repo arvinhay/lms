@@ -19,7 +19,9 @@ from frappe.utils import (
 	get_datetime,
 	get_frappe_version,
 	get_fullname,
+	get_url,
 	getdate,
+	now_datetime,
 	nowtime,
 	pretty_date,
 	rounded,
@@ -34,6 +36,10 @@ from lms.lms.md import find_macros
 
 RE_SLUG_NOTALLOWED = re.compile("[^a-z0-9]+")
 LMS_ROLES = ["Moderator", "Course Creator", "Batch Evaluator", "LMS Student"]
+REA_DISCUSSION_NOTIFICATION_RECIPIENTS = (
+	"arvin@refugee-education.org.au",
+	"john@refugee-education.org.au",
+)
 
 
 def get_lms_path():
@@ -434,6 +440,7 @@ def handle_notifications(doc: Document, method: str):
 	create_notification_log(doc, topic)
 	notify_mentions_on_portal(doc, topic)
 	notify_mentions_via_email(doc, topic)
+	notify_rea_staff_for_discussion_reply(doc, topic)
 
 
 def get_course_details_for_notification(topic: dict):
@@ -574,6 +581,103 @@ def notify_mentions_via_email(doc: Document, topic: dict):
 			header=[subject, "green"],
 			retry=3,
 		)
+
+
+def notify_rea_staff_for_discussion_reply(doc: Document, topic: dict):
+	recipients = get_rea_discussion_notification_recipients()
+	if not recipients:
+		return
+
+	context = get_discussion_notification_context(doc, topic)
+	frappe.sendmail(
+		recipients=recipients,
+		subject=context["subject"],
+		template="rea_discussion_reply_notification",
+		args=context,
+		header=["New LMS discussion comment", "blue"],
+		retry=3,
+	)
+
+
+def get_rea_discussion_notification_recipients() -> list[str]:
+	configured_recipients = frappe.conf.get("rea_discussion_notification_recipients")
+	if isinstance(configured_recipients, str):
+		recipients = [
+			recipient.strip()
+			for recipient in configured_recipients.replace(";", ",").split(",")
+			if recipient.strip()
+		]
+	elif isinstance(configured_recipients, (list, tuple)):
+		recipients = configured_recipients
+	else:
+		recipients = REA_DISCUSSION_NOTIFICATION_RECIPIENTS
+
+	valid_recipients = []
+	for recipient in recipients:
+		if validate_email_address(recipient, throw=False):
+			valid_recipients.append(recipient)
+		else:
+			frappe.log_error(
+				title="Invalid discussion notification recipient",
+				message=recipient,
+			)
+
+	return valid_recipients
+
+
+def get_discussion_notification_context(doc: Document, topic: dict) -> dict:
+	author = frappe.db.get_value(
+		"User",
+		doc.owner,
+		["name", "email", "full_name", "username", "user_type"],
+		as_dict=True,
+	) or {}
+	author_name = author.get("full_name") or doc.owner
+	link = get_discussion_reply_link(topic)
+
+	return {
+		"subject": get_discussion_notification_subject(author_name, topic),
+		"author": author,
+		"author_name": author_name,
+		"topic_title": topic.title,
+		"reference_doctype": topic.reference_doctype,
+		"reference_docname": topic.reference_docname,
+		"discussion_link": link,
+		"reply": sanitize_html(doc.reply or "", always_sanitize=True),
+		"submitted_at": format_datetime(doc.creation or now_datetime()),
+	}
+
+
+def get_discussion_notification_subject(author_name: str, topic: dict) -> str:
+	if topic.reference_doctype == "Course Lesson":
+		lesson = frappe.db.get_value(
+			"Course Lesson",
+			topic.reference_docname,
+			["course", "title"],
+			as_dict=True,
+		)
+		course_title = frappe.db.get_value("LMS Course", lesson.course, "title") if lesson else None
+		lesson_title = lesson.title if lesson else topic.title
+		location = f"{course_title}: {lesson_title}" if course_title else lesson_title
+		return _("New LMS comment from {0} on {1}").format(author_name, location)
+
+	if topic.reference_doctype == "LMS Batch":
+		batch_title = frappe.db.get_value("LMS Batch", topic.reference_docname, "title")
+		return _("New LMS comment from {0} in {1}").format(author_name, batch_title or topic.title)
+
+	return _("New LMS comment from {0}").format(author_name)
+
+
+def get_discussion_reply_link(topic: dict) -> str:
+	if topic.reference_doctype == "LMS Batch":
+		return get_url(get_lms_route(f"batches/{topic.reference_docname}#discussions"))
+
+	if topic.reference_doctype == "Course Lesson":
+		course = frappe.db.get_value("Course Lesson", topic.reference_docname, "course")
+		if course:
+			return get_url(get_lesson_url(course, get_lesson_index(topic.reference_docname)))
+
+	return get_url(get_lms_route())
 
 
 def get_lesson_count(course: str) -> int:

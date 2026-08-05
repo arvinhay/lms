@@ -1,0 +1,47 @@
+<div style="font-family: Inter, Arial, sans-serif; color: #243b43;">
+	<p style="margin: 0 0 16px;">
+		A new discussion comment has been posted in REA LMS.
+	</p>
+
+	<table style="width: 100%; border-collapse: collapse; margin: 0 0 18px;">
+		<tr>
+			<td style="padding: 8px 0; color: #5f6f75; width: 160px;">Author</td>
+			<td style="padding: 8px 0;">{{ author_name | e }}</td>
+		</tr>
+		<tr>
+			<td style="padding: 8px 0; color: #5f6f75;">Email</td>
+			<td style="padding: 8px 0;">
+				{% if author.email %}
+				<a href="mailto:{{ author.email | e }}" style="color: #0b7f94;">{{ author.email | e }}</a>
+				{% else %}
+				Not available
+				{% endif %}
+			</td>
+		</tr>
+		<tr>
+			<td style="padding: 8px 0; color: #5f6f75;">User ID</td>
+			<td style="padding: 8px 0;">{{ author.name | e }}</td>
+		</tr>
+		<tr>
+			<td style="padding: 8px 0; color: #5f6f75;">Location</td>
+			<td style="padding: 8px 0;">{{ reference_doctype | e }}: {{ reference_docname | e }}</td>
+		</tr>
+		<tr>
+			<td style="padding: 8px 0; color: #5f6f75;">Topic</td>
+			<td style="padding: 8px 0;">{{ topic_title | e }}</td>
+		</tr>
+		<tr>
+			<td style="padding: 8px 0; color: #5f6f75;">Submitted</td>
+			<td style="padding: 8px 0;">{{ submitted_at | e }}</td>
+		</tr>
+	</table>
+
+	<div style="border: 1px solid #d8e7e9; border-radius: 8px; padding: 16px; background: #f8fbfb; margin-bottom: 18px;">
+		<div style="font-weight: 700; margin-bottom: 8px; color: #0b7f94;">Comment</div>
+		<div>{{ reply | safe }}</div>
+	</div>
+
+	<p style="margin: 0;">
+		<a class="rea-email-button" href="{{ discussion_link | e }}">View discussion</a>
+	</p>
+</div>
