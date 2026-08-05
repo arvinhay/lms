@@ -36,10 +36,7 @@ from lms.lms.md import find_macros
 
 RE_SLUG_NOTALLOWED = re.compile("[^a-z0-9]+")
 LMS_ROLES = ["Moderator", "Course Creator", "Batch Evaluator", "LMS Student"]
-REA_DISCUSSION_NOTIFICATION_RECIPIENTS = (
-	"arvin@refugee-education.org.au",
-	"john@refugee-education.org.au",
-)
+REA_DISCUSSION_NOTIFICATION_ROLES = ("System Manager", "Moderator")
 
 
 def get_lms_path():
@@ -612,6 +609,7 @@ def send_rea_discussion_notification(recipients: list[str], context: dict):
 
 
 def get_rea_discussion_notification_recipients() -> list[str]:
+	"""Return an override list or every enabled human LMS administrator."""
 	configured_recipients = frappe.conf.get("rea_discussion_notification_recipients")
 	if isinstance(configured_recipients, str):
 		recipients = [
@@ -622,19 +620,49 @@ def get_rea_discussion_notification_recipients() -> list[str]:
 	elif isinstance(configured_recipients, (list, tuple)):
 		recipients = configured_recipients
 	else:
-		recipients = REA_DISCUSSION_NOTIFICATION_RECIPIENTS
+		recipients = get_rea_administrator_notification_recipients()
 
 	valid_recipients = []
+	seen = set()
 	for recipient in recipients:
-		if validate_email_address(recipient, throw=False):
+		recipient = (recipient or "").strip()
+		normalized_recipient = recipient.lower()
+		if validate_email_address(recipient, throw=False) and normalized_recipient not in seen:
 			valid_recipients.append(recipient)
+			seen.add(normalized_recipient)
 		else:
-			frappe.log_error(
-				title="Invalid discussion notification recipient",
-				message=recipient,
-			)
+			if recipient and normalized_recipient not in seen:
+				frappe.log_error(
+					title="Invalid discussion notification recipient",
+					message=recipient,
+				)
 
 	return valid_recipients
+
+
+def get_rea_administrator_notification_recipients() -> list[str]:
+	admin_users = frappe.get_all(
+		"Has Role",
+		filters={
+			"parenttype": "User",
+			"role": ["in", REA_DISCUSSION_NOTIFICATION_ROLES],
+		},
+		pluck="parent",
+	)
+	admin_users = sorted(set(admin_users) - {"Administrator", "Guest"})
+	if not admin_users:
+		return []
+
+	return frappe.get_all(
+		"User",
+		filters={
+			"name": ["in", admin_users],
+			"enabled": 1,
+			"user_type": "System User",
+		},
+		pluck="email",
+		order_by="name",
+	)
 
 
 def get_discussion_notification_context(doc: Document, topic: dict) -> dict:
